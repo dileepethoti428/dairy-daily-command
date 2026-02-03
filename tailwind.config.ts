@@ -7,12 +7,39 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1rem",
       screens: {
+        sm: "640px",
+        md: "768px",
+        lg: "1024px",
+        xl: "1280px",
         "2xl": "1400px",
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        // Minimum 14px for accessibility
+        'xs': ['0.875rem', { lineHeight: '1.25rem' }],
+        'sm': ['0.875rem', { lineHeight: '1.375rem' }],
+        'base': ['1rem', { lineHeight: '1.5rem' }],
+        'lg': ['1.125rem', { lineHeight: '1.75rem' }],
+        'xl': ['1.25rem', { lineHeight: '1.875rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.375rem' }],
+        '4xl': ['2.25rem', { lineHeight: '2.75rem' }],
+      },
+      spacing: {
+        // 8px spacing system
+        'dairy': '0.5rem',
+        'dairy-2': '1rem',
+        'dairy-3': '1.5rem',
+        'dairy-4': '2rem',
+        'dairy-5': '2.5rem',
+        'dairy-6': '3rem',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +74,14 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -57,11 +92,25 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Semantic dairy colors for direct use
+        dairy: {
+          green: "hsl(122 47% 34%)",
+          "green-light": "hsl(122 47% 45%)",
+          "green-dark": "hsl(122 47% 28%)",
+          yellow: "hsl(45 96% 58%)",
+          "yellow-light": "hsl(45 96% 70%)",
+          cream: "hsl(40 40% 96%)",
+          milk: "hsl(0 0% 100%)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        'dairy': '0 2px 8px -2px hsl(220 20% 15% / 0.08), 0 4px 16px -4px hsl(220 20% 15% / 0.12)',
+        'dairy-lg': '0 4px 12px -2px hsl(220 20% 15% / 0.1), 0 8px 24px -4px hsl(220 20% 15% / 0.15)',
       },
       keyframes: {
         "accordion-down": {
@@ -80,10 +129,21 @@ export default {
             height: "0",
           },
         },
+        "fade-in": {
+          from: {
+            opacity: "0",
+            transform: "translateY(4px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
       },
     },
   },

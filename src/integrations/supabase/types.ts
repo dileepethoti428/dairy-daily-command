@@ -1130,6 +1130,39 @@ export type Database = {
         }
         Relationships: []
       }
+      collection_centers: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       commission_config: {
         Row: {
           commission_rate: number
@@ -2344,6 +2377,50 @@ export type Database = {
         }
         Relationships: []
       }
+      farmers: {
+        Row: {
+          address: string | null
+          center_id: string
+          created_at: string
+          farmer_code: string
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          center_id: string
+          created_at?: string
+          farmer_code: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          center_id?: string
+          created_at?: string
+          farmer_code?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farmers_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "collection_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -2566,6 +2643,63 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
+      }
+      milk_entries: {
+        Row: {
+          created_at: string
+          entry_date: string
+          farmer_id: string
+          fat_percentage: number | null
+          id: string
+          quantity_liters: number
+          recorded_by: string | null
+          session: string
+          settlement_id: string | null
+          snf_percentage: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entry_date?: string
+          farmer_id: string
+          fat_percentage?: number | null
+          id?: string
+          quantity_liters: number
+          recorded_by?: string | null
+          session: string
+          settlement_id?: string | null
+          snf_percentage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          farmer_id?: string
+          fat_percentage?: number | null
+          id?: string
+          quantity_liters?: number
+          recorded_by?: string | null
+          session?: string
+          settlement_id?: string | null
+          snf_percentage?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milk_entries_farmer_id_fkey"
+            columns: ["farmer_id"]
+            isOneToOne: false
+            referencedRelation: "farmers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "milk_entries_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "settlements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       milk_transactions: {
         Row: {
@@ -4980,6 +5114,44 @@ export type Database = {
           value?: string
         }
         Relationships: []
+      }
+      settlements: {
+        Row: {
+          center_id: string
+          created_at: string
+          end_date: string
+          id: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          center_id: string
+          created_at?: string
+          end_date: string
+          id?: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          center_id?: string
+          created_at?: string
+          end_date?: string
+          id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlements_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "collection_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       spatial_ref_sys: {
         Row: {
