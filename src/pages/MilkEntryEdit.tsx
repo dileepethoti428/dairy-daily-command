@@ -25,8 +25,7 @@ export default function MilkEntryEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userRole } = useAuth();
-  const isAdmin = userRole === 'admin';
+  const { isAdmin } = useAuth();
 
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingValues, setPendingValues] = useState<
@@ -69,7 +68,7 @@ export default function MilkEntryEdit() {
   }
 
   const entryDate = parseISO(entry.entry_date);
-  const canEdit = isToday(entryDate);
+  const canEdit = isToday(entryDate) || isAdmin; // Admin can edit any open (unlocked) entry
   const isLocked = (entry as any).is_locked === true;
 
   // Check if entry is locked (part of a locked settlement)
@@ -103,6 +102,7 @@ export default function MilkEntryEdit() {
     );
   }
 
+  // For staff, prevent editing past entries
   if (!canEdit) {
     return (
       <AppLayout>
@@ -122,7 +122,7 @@ export default function MilkEntryEdit() {
               <p className="text-sm text-muted-foreground">
                 This entry was recorded on{' '}
                 {format(entryDate, 'dd MMM yyyy')} and can no longer be edited.
-                Only same-day entries can be modified.
+                Only same-day entries can be modified by staff. Contact an admin for changes.
               </p>
               <Button onClick={() => navigate(`/milk/${id}`)}>
                 View Entry Details

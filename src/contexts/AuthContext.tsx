@@ -2,11 +2,15 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+export type AppRole = 'admin' | 'staff';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  userRole: string | null;
+  userRole: AppRole;
+  isAdmin: boolean;
+  isStaff: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -18,7 +22,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<AppRole>('staff');
+
+  const isAdmin = userRole === 'admin';
+  const isStaff = userRole === 'staff';
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -33,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fetchUserRole(session.user.id);
           }, 0);
         } else {
-          setUserRole(null);
+          setUserRole('staff');
         }
         
         setLoading(false);
@@ -65,12 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('Error fetching user role:', error);
+        setUserRole('staff');
         return;
       }
 
-      setUserRole(data?.role ?? 'user');
+      // Default to 'staff' if no role found or role is not admin
+      const role = data?.role as AppRole;
+      setUserRole(role === 'admin' ? 'admin' : 'staff');
     } catch (err) {
       console.error('Error fetching user role:', err);
+      setUserRole('staff');
     }
   };
 
@@ -104,11 +115,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setUserRole(null);
+    setUserRole('staff');
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, userRole, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      loading, 
+      userRole, 
+      isAdmin, 
+      isStaff,
+      signIn, 
+      signUp, 
+      signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -30,15 +30,21 @@ import { cn } from '@/lib/utils';
 export default function FarmerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { userRole } = useAuth();
+  const { isAdmin } = useAuth();
   const { data: farmer, isLoading, error } = useFarmer(id || '');
   const { data: settlements } = useSettlements(farmer?.center_id || undefined);
   const [selectedSettlementForPDF, setSelectedSettlementForPDF] = useState<string | null>(null);
 
-  const isAdmin = userRole === 'admin';
-
   // Get locked/paid settlements for PDF generation
   const availableSettlements = settlements?.filter(s => s.status === 'locked' || s.status === 'paid') || [];
+
+  // Mask account number - show only last 4 digits for non-admin
+  const maskAccountNumber = (accNum: string | null) => {
+    if (!accNum) return '-';
+    if (isAdmin) return accNum;
+    if (accNum.length <= 4) return '****';
+    return `****${accNum.slice(-4)}`;
+  };
 
   if (isLoading) {
     return (
@@ -147,6 +153,15 @@ export default function FarmerDetail() {
                 <span>{farmer.collection_centers?.name || 'N/A'}</span>
               </div>
             </div>
+
+            {/* Audit Info */}
+            <Separator className="my-4" />
+            <div className="text-xs text-muted-foreground">
+              Registered: {format(new Date(farmer.created_at), 'dd MMM yyyy')}
+              {farmer.updated_at && farmer.updated_at !== farmer.created_at && (
+                <span> • Updated: {format(new Date(farmer.updated_at), 'dd MMM yyyy')}</span>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -156,12 +171,10 @@ export default function FarmerDetail() {
             <CardTitle className="flex items-center gap-2 text-base">
               <Building2 className="h-4 w-4 text-primary" />
               Bank Details
-              {!isAdmin && (
-                <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
-                  <Lock className="h-3 w-3" />
-                  View Only
-                </span>
-              )}
+              <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                <Lock className="h-3 w-3" />
+                {isAdmin ? 'Admin Access' : 'View Only'}
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -176,9 +189,7 @@ export default function FarmerDetail() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Account Number</span>
                   <span className="font-medium font-mono">
-                    {farmer.bank_account_number
-                      ? `****${farmer.bank_account_number.slice(-4)}`
-                      : '-'}
+                    {maskAccountNumber(farmer.bank_account_number)}
                   </span>
                 </div>
                 <div className="flex justify-between">
