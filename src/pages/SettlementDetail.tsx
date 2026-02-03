@@ -25,6 +25,7 @@ import {
   useMarkSettlementPaid,
 } from '@/hooks/useSettlements';
 import { generateSettlementReport, generateFarmerStatementReport } from '@/hooks/usePDFReports';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -34,11 +35,13 @@ import {
   Loader2,
   AlertTriangle,
   FileText,
+  Clock,
 } from 'lucide-react';
 
 export default function SettlementDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [showLockDialog, setShowLockDialog] = useState(false);
   const [showPaidDialog, setShowPaidDialog] = useState(false);
   const [showPDFSheet, setShowPDFSheet] = useState(false);
@@ -132,7 +135,7 @@ export default function SettlementDetail() {
         <SettlementSummary settlement={settlement} />
 
         {/* Action Buttons - Admin Only */}
-        {settlement.status === 'open' && (
+        {isAdmin && settlement.status === 'open' && (
           <Card className="shadow-dairy">
             <CardContent className="p-4">
               <Button
@@ -155,7 +158,7 @@ export default function SettlementDetail() {
           </Card>
         )}
 
-        {settlement.status === 'locked' && (
+        {isAdmin && settlement.status === 'locked' && (
           <Card className="shadow-dairy">
             <CardContent className="p-4">
               <Button
@@ -172,6 +175,18 @@ export default function SettlementDetail() {
               </Button>
               <p className="mt-2 text-center text-xs text-muted-foreground">
                 Mark this settlement as paid to all farmers
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Staff notice for locked settlements */}
+        {!isAdmin && settlement.status === 'open' && (
+          <Card className="shadow-dairy border-muted bg-muted/30">
+            <CardContent className="flex items-center gap-3 p-4">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Only admins can lock settlements and mark them as paid
               </p>
             </CardContent>
           </Card>

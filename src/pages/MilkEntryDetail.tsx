@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { useMilkEntry } from '@/hooks/useMilkEntries';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowLeft,
   Calendar,
@@ -16,12 +17,14 @@ import {
   Edit,
   User,
   Lock,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function MilkEntryDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { data: entry, isLoading, error } = useMilkEntry(id || '');
 
   if (isLoading) {
@@ -57,7 +60,7 @@ export default function MilkEntryDetail() {
   }
 
   const entryDate = parseISO(entry.entry_date);
-  const canEdit = isToday(entryDate);
+  const canEdit = isToday(entryDate) || isAdmin; // Admin can edit any open (unlocked) entry
   const isLocked = (entry as any).is_locked === true;
 
   return (
@@ -189,6 +192,21 @@ export default function MilkEntryDetail() {
           </CardContent>
         </Card>
 
+        {/* Audit Information */}
+        <Card className="mb-4 shadow-dairy">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>
+                Recorded: {format(new Date(entry.created_at), 'dd MMM yyyy, HH:mm')}
+                {entry.updated_at && entry.updated_at !== entry.created_at && (
+                  <span> • Updated: {format(new Date(entry.updated_at), 'dd MMM yyyy, HH:mm')}</span>
+                )}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Actions */}
         {isLocked ? (
           <div className="flex items-center justify-center gap-2 rounded-lg bg-destructive/10 p-4 text-destructive">
@@ -206,7 +224,7 @@ export default function MilkEntryDetail() {
         ) : (
           <div className="flex items-center justify-center gap-2 rounded-lg bg-muted p-4 text-muted-foreground">
             <Lock className="h-4 w-4" />
-            <span className="text-sm">Past entries cannot be edited</span>
+            <span className="text-sm">Past entries cannot be edited (contact admin)</span>
           </div>
         )}
       </div>

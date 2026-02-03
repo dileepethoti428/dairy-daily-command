@@ -7,13 +7,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SettlementCard } from '@/components/settlements/SettlementCard';
 import { CreateSettlementDialog } from '@/components/settlements/CreateSettlementDialog';
 import { useSettlements, useCurrentOpenSettlement } from '@/hooks/useSettlements';
-import { ArrowLeft, Plus, FileText, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { ArrowLeft, Plus, FileText, AlertCircle, Lock } from 'lucide-react';
 
 // Using a placeholder center ID for now - in a real app this would come from user context
 const DEFAULT_CENTER_ID = '00000000-0000-0000-0000-000000000000';
 
 export default function SettlementList() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   
   const { data: settlements, isLoading } = useSettlements();
@@ -38,7 +40,7 @@ export default function SettlementList() {
               <p className="text-sm text-muted-foreground">15-day payment cycles</p>
             </div>
           </div>
-          {!openSettlement && (
+          {isAdmin && !openSettlement && (
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New
@@ -46,8 +48,20 @@ export default function SettlementList() {
           )}
         </div>
 
-        {/* Open Settlement Alert */}
-        {openSettlement && (
+        {/* Staff notice */}
+        {!isAdmin && (
+          <Card className="mb-4 border-muted bg-muted/30 shadow-dairy">
+            <CardContent className="flex items-center gap-3 p-4">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Only admins can create and manage settlements
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Open Settlement Alert - Admin only */}
+        {isAdmin && openSettlement && (
           <Card className="mb-4 border-warning bg-warning/5 shadow-dairy">
             <CardContent className="flex items-center gap-3 p-4">
               <AlertCircle className="h-5 w-5 text-warning" />
@@ -87,15 +101,17 @@ export default function SettlementList() {
                 <p className="mt-2 text-sm text-muted-foreground">
                   No settlements yet
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => setShowCreateDialog(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create First Settlement
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setShowCreateDialog(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create First Settlement
+                  </Button>
+                )}
               </div>
             ) : (
               settlements?.map((settlement) => (
