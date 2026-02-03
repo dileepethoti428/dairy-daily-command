@@ -7,7 +7,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Farmers from "./pages/Farmers";
+import FarmerList from "./pages/FarmerList";
+import FarmerAdd from "./pages/FarmerAdd";
+import FarmerDetail from "./pages/FarmerDetail";
+import FarmerEdit from "./pages/FarmerEdit";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -35,7 +38,31 @@ const App = () => (
               path="/farmers"
               element={
                 <ProtectedRoute>
-                  <Farmers />
+                  <FarmerList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/farmers/add"
+              element={
+                <ProtectedRoute>
+                  <FarmerAdd />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/farmers/:id"
+              element={
+                <ProtectedRoute>
+                  <FarmerDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/farmers/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <FarmerEdit />
                 </ProtectedRoute>
               }
             />

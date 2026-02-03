@@ -1,0 +1,194 @@
+import { useNavigate, useParams } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { FarmerForm, FarmerFormData } from '@/components/farmers/FarmerForm';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  useFarmer,
+  useUpdateFarmer,
+  useCollectionCenters,
+} from '@/hooks/useFarmers';
+import { ArrowLeft, Edit } from 'lucide-react';
+import { useState } from 'react';
+
+export default function FarmerEdit() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [showDeactivateWarning, setShowDeactivateWarning] = useState(false);
+  const [pendingData, setPendingData] = useState<FarmerFormData | null>(null);
+
+  const { data: farmer, isLoading: farmerLoading } = useFarmer(id || '');
+  const { data: centers, isLoading: centersLoading } = useCollectionCenters();
+  const updateFarmer = useUpdateFarmer();
+
+  const handleSubmit = (data: FarmerFormData) => {
+    // Check if user is deactivating the farmer
+    if (farmer?.is_active && !data.is_active) {
+      setPendingData(data);
+      setShowDeactivateWarning(true);
+      return;
+    }
+
+    performUpdate(data);
+  };
+
+  const performUpdate = (data: FarmerFormData) => {
+    if (!id) return;
+
+    updateFarmer.mutate(
+      {
+        id,
+        full_name: data.full_name,
+        phone: data.phone,
+        village: data.village,
+        milk_type: data.milk_type,
+        is_active: data.is_active,
+        bank_account_holder_name: data.bank_account_holder_name || null,
+        bank_account_number: data.bank_account_number || null,
+        bank_ifsc: data.bank_ifsc || null,
+        bank_name: data.bank_name || null,
+        center_id: data.center_id,
+      },
+      {
+        onSuccess: () => {
+          navigate(`/farmers/${id}`);
+        },
+      }
+    );
+  };
+
+  const handleConfirmDeactivate = () => {
+    if (pendingData) {
+      performUpdate(pendingData);
+    }
+    setShowDeactivateWarning(false);
+    setPendingData(null);
+  };
+
+  if (farmerLoading || centersLoading) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-lg space-y-4 p-4">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-64 rounded-lg" />
+          <Skeleton className="h-32 rounded-lg" />
+          <Skeleton className="h-48 rounded-lg" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!farmer) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-lg p-4">
+          <Button
+            variant="ghost"
+            className="mb-4 -ml-2"
+            onClick={() => navigate('/farmers')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <div className="rounded-lg bg-destructive/10 p-6 text-center text-destructive">
+            Farmer not found.
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!centers || centers.length === 0) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-lg p-4">
+          <Button
+            variant="ghost"
+            className="mb-4 -ml-2"
+            onClick={() => navigate(`/farmers/${id}`)}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <div className="rounded-lg bg-warning/10 p-6 text-center">
+            <p className="font-medium text-foreground">No Collection Centers</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <div className="mx-auto max-w-lg p-4 pb-8">
+        {/* Header */}
+        <div className="mb-4 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="-ml-2"
+            onClick={() => navigate(`/farmers/${id}`)}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+            <Edit className="h-5 w-5 text-primary" />
+            Edit Farmer
+          </h1>
+        </div>
+
+        {/* Form */}
+        <FarmerForm
+          defaultValues={{
+            full_name: farmer.full_name,
+            phone: farmer.phone || '',
+            village: farmer.village || '',
+            milk_type: farmer.milk_type || 'cow',
+            is_active: farmer.is_active,
+            bank_account_holder_name: farmer.bank_account_holder_name || '',
+            bank_account_number: farmer.bank_account_number || '',
+            bank_ifsc: farmer.bank_ifsc || '',
+            bank_name: farmer.bank_name || '',
+            center_id: farmer.center_id,
+          }}
+          onSubmit={handleSubmit}
+          isLoading={updateFarmer.isPending}
+          isEdit
+          centers={centers}
+        />
+
+        {/* Deactivation Warning Dialog */}
+        <AlertDialog
+          open={showDeactivateWarning}
+          onOpenChange={setShowDeactivateWarning}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Deactivate Farmer?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deactivating this farmer will prevent new milk entries from being
+                recorded. The farmer's history will be preserved.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDeactivate}>
+                Deactivate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </AppLayout>
+  );
+}
