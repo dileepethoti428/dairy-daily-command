@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MilkEntrySummary } from '@/components/milk/MilkEntrySummary';
 import { MilkEntryCard } from '@/components/milk/MilkEntryCard';
+import { PDFActionSheet } from '@/components/pdf/PDFActionSheet';
 import { useMilkEntries, useTodayStats } from '@/hooks/useMilkEntries';
-import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
-
+import { generateDailyReport } from '@/hooks/usePDFReports';
+import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, Plus, FileText } from 'lucide-react';
 export default function TodayEntries() {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showPDFSheet, setShowPDFSheet] = useState(false);
   const formattedDate = format(selectedDate, 'yyyy-MM-dd');
 
   const { data: entries, isLoading: entriesLoading } = useMilkEntries(formattedDate);
@@ -38,18 +40,29 @@ export default function TodayEntries() {
     <AppLayout>
       <div className="mx-auto max-w-lg p-4 pb-8">
         {/* Header */}
-        <div className="mb-4 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="-ml-2"
-            onClick={() => navigate('/')}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-semibold text-foreground">
-            {isToday(selectedDate) ? "Today's Entries" : 'Milk Entries'}
-          </h1>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="-ml-2"
+              onClick={() => navigate('/')}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-semibold text-foreground">
+              {isToday(selectedDate) ? "Today's Entries" : 'Milk Entries'}
+            </h1>
+          </div>
+          {(entries?.length || 0) > 0 && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowPDFSheet(true)}
+            >
+              <FileText className="h-5 w-5" />
+            </Button>
+          )}
         </div>
 
         {/* Date Navigation */}
@@ -149,6 +162,16 @@ export default function TodayEntries() {
           )}
         </div>
       </div>
+
+      {/* PDF Action Sheet */}
+      <PDFActionSheet
+        open={showPDFSheet}
+        onOpenChange={setShowPDFSheet}
+        title="Daily Collection Report"
+        description={`Report for ${format(selectedDate, 'dd MMMM yyyy')}`}
+        generatePDF={() => generateDailyReport(formattedDate)}
+        filename={`daily-collection-${formattedDate}.pdf`}
+      />
     </AppLayout>
   );
 }

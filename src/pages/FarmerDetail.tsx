@@ -1,16 +1,22 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { format } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { PDFActionSheet } from '@/components/pdf/PDFActionSheet';
 import { useFarmer } from '@/hooks/useFarmers';
+import { useSettlements } from '@/hooks/useSettlements';
+import { generateFarmerStatementReport } from '@/hooks/usePDFReports';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowLeft,
   Building2,
   Edit,
+  FileText,
   History,
   Lock,
   MapPin,
@@ -26,8 +32,13 @@ export default function FarmerDetail() {
   const navigate = useNavigate();
   const { userRole } = useAuth();
   const { data: farmer, isLoading, error } = useFarmer(id || '');
+  const { data: settlements } = useSettlements(farmer?.center_id || undefined);
+  const [selectedSettlementForPDF, setSelectedSettlementForPDF] = useState<string | null>(null);
 
   const isAdmin = userRole === 'admin';
+
+  // Get locked/paid settlements for PDF generation
+  const availableSettlements = settlements?.filter(s => s.status === 'locked' || s.status === 'paid') || [];
 
   if (isLoading) {
     return (
@@ -205,18 +216,30 @@ export default function FarmerDetail() {
               <Edit className="mr-2 h-4 w-4" />
               Edit Farmer
             </Button>
-            <Button
-              variant="outline"
-              className="h-14"
-              onClick={() => {
-                // Placeholder for milk history
-              }}
-            >
-              <History className="mr-2 h-4 w-4" />
-              Milk History
-            </Button>
+            {availableSettlements.length > 0 && (
+              <Button
+                variant="outline"
+                className="h-14"
+                onClick={() => setSelectedSettlementForPDF(availableSettlements[0].id)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Statement
+              </Button>
+            )}
           </div>
         </div>
+
+        {/* Farmer Statement PDF Sheet */}
+        {selectedSettlementForPDF && (
+          <PDFActionSheet
+            open={!!selectedSettlementForPDF}
+            onOpenChange={(open) => !open && setSelectedSettlementForPDF(null)}
+            title="Farmer Statement"
+            description={`Statement for ${farmer.full_name}`}
+            generatePDF={() => generateFarmerStatementReport(farmer.id, selectedSettlementForPDF)}
+            filename={`farmer-statement-${farmer.farmer_code || farmer.id}.pdf`}
+          />
+        )}
       </div>
     </AppLayout>
   );

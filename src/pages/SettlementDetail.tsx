@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,12 +17,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { SettlementSummary } from '@/components/settlements/SettlementSummary';
 import { FarmerBreakdownCard } from '@/components/settlements/FarmerBreakdownCard';
+import { PDFActionSheet } from '@/components/pdf/PDFActionSheet';
 import {
   useSettlement,
   useSettlementFarmerBreakdown,
   useLockSettlement,
   useMarkSettlementPaid,
 } from '@/hooks/useSettlements';
+import { generateSettlementReport, generateFarmerStatementReport } from '@/hooks/usePDFReports';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -30,6 +33,7 @@ import {
   CheckCircle,
   Loader2,
   AlertTriangle,
+  FileText,
 } from 'lucide-react';
 
 export default function SettlementDetail() {
@@ -37,7 +41,8 @@ export default function SettlementDetail() {
   const navigate = useNavigate();
   const [showLockDialog, setShowLockDialog] = useState(false);
   const [showPaidDialog, setShowPaidDialog] = useState(false);
-
+  const [showPDFSheet, setShowPDFSheet] = useState(false);
+  const [selectedFarmerForPDF, setSelectedFarmerForPDF] = useState<string | null>(null);
   const { data: settlement, isLoading: settlementLoading } = useSettlement(id!);
   const { data: farmerBreakdown, isLoading: breakdownLoading } =
     useSettlementFarmerBreakdown(id!);
@@ -93,23 +98,34 @@ export default function SettlementDetail() {
     <AppLayout>
       <div className="mx-auto max-w-lg space-y-4 p-4">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10"
-            onClick={() => navigate('/settlements')}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              Settlement Details
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {farmerBreakdown?.length || 0} farmers
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10"
+              onClick={() => navigate('/settlements')}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-semibold text-foreground">
+                Settlement Details
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {farmerBreakdown?.length || 0} farmers
+              </p>
+            </div>
           </div>
+          {(settlement.status === 'locked' || settlement.status === 'paid') && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowPDFSheet(true)}
+            >
+              <FileText className="h-5 w-5" />
+            </Button>
+          )}
         </div>
 
         {/* Summary Card */}
@@ -182,7 +198,12 @@ export default function SettlementDetail() {
               </div>
             ) : (
               farmerBreakdown?.map((breakdown) => (
-                <FarmerBreakdownCard key={breakdown.farmer_id} breakdown={breakdown} />
+                <FarmerBreakdownCard 
+                  key={breakdown.farmer_id} 
+                  breakdown={breakdown}
+                  showPDFButton={settlement.status === 'locked' || settlement.status === 'paid'}
+                  onPDFClick={() => setSelectedFarmerForPDF(breakdown.farmer_id)}
+                />
               ))
             )}
           </CardContent>
@@ -239,6 +260,26 @@ export default function SettlementDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Settlement Summary PDF Sheet */}
+      <PDFActionSheet
+        open={showPDFSheet}
+        onOpenChange={setShowPDFSheet}
+        title="Settlement Summary Report"
+        description={`${format(new Date(settlement.start_date), 'dd MMM')} - ${format(new Date(settlement.end_date), 'dd MMM yyyy')}`}
+        generatePDF={() => generateSettlementReport(id!)}
+        filename={`settlement-summary-${settlement.start_date}-to-${settlement.end_date}.pdf`}
+      />
+
+      {/* Farmer Statement PDF Sheet */}
+      <PDFActionSheet
+        open={!!selectedFarmerForPDF}
+        onOpenChange={(open) => !open && setSelectedFarmerForPDF(null)}
+        title="Farmer Statement"
+        description="15-Day Settlement Statement"
+        generatePDF={() => generateFarmerStatementReport(selectedFarmerForPDF!, id!)}
+        filename={`farmer-statement-${selectedFarmerForPDF}-${settlement.start_date}.pdf`}
+      />
     </AppLayout>
   );
 }
