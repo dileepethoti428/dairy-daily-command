@@ -14,6 +14,10 @@ import FarmerEdit from "./pages/FarmerEdit";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import MilkEntryAdd from "./pages/MilkEntryAdd";
+import TodayEntries from "./pages/TodayEntries";
+import MilkEntryDetail from "./pages/MilkEntryDetail";
+import MilkEntryEdit from "./pages/MilkEntryEdit";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +83,38 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/milk/add"
+              element={
+                <ProtectedRoute>
+                  <MilkEntryAdd />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/milk/today"
+              element={
+                <ProtectedRoute>
+                  <TodayEntries />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/milk/:id"
+              element={
+                <ProtectedRoute>
+                  <MilkEntryDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/milk/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <MilkEntryEdit />
                 </ProtectedRoute>
               }
             />
