@@ -58,6 +58,7 @@ export default function MilkEntryDetail() {
 
   const entryDate = parseISO(entry.entry_date);
   const canEdit = isToday(entryDate);
+  const isLocked = (entry as any).is_locked === true;
 
   return (
     <AppLayout>
@@ -189,7 +190,12 @@ export default function MilkEntryDetail() {
         </Card>
 
         {/* Actions */}
-        {canEdit ? (
+        {isLocked ? (
+          <div className="flex items-center justify-center gap-2 rounded-lg bg-destructive/10 p-4 text-destructive">
+            <Lock className="h-4 w-4" />
+            <span className="text-sm font-medium">Entry is locked (settlement finalized)</span>
+          </div>
+        ) : canEdit ? (
           <Button
             className="h-14 w-full"
             onClick={() => navigate(`/milk/${entry.id}/edit`)}
