@@ -2380,36 +2380,54 @@ export type Database = {
       farmers: {
         Row: {
           address: string | null
+          bank_account_holder_name: string | null
+          bank_account_number: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
           center_id: string
           created_at: string
           farmer_code: string
           full_name: string
           id: string
           is_active: boolean
-          phone: string | null
+          milk_type: Database["public"]["Enums"]["milk_type"] | null
+          phone: string
           updated_at: string
+          village: string | null
         }
         Insert: {
           address?: string | null
+          bank_account_holder_name?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
           center_id: string
           created_at?: string
           farmer_code: string
           full_name: string
           id?: string
           is_active?: boolean
-          phone?: string | null
+          milk_type?: Database["public"]["Enums"]["milk_type"] | null
+          phone: string
           updated_at?: string
+          village?: string | null
         }
         Update: {
           address?: string | null
+          bank_account_holder_name?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
           center_id?: string
           created_at?: string
           farmer_code?: string
           full_name?: string
           id?: string
           is_active?: boolean
-          phone?: string | null
+          milk_type?: Database["public"]["Enums"]["milk_type"] | null
+          phone?: string
           updated_at?: string
+          village?: string | null
         }
         Relationships: [
           {
@@ -9441,6 +9459,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "agent" | "seller" | "rider"
+      milk_type: "cow" | "buffalo" | "both"
     }
     CompositeTypes: {
       geometry_dump: {
@@ -9577,6 +9596,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "agent", "seller", "rider"],
+      milk_type: ["cow", "buffalo", "both"],
     },
   },
 } as const
