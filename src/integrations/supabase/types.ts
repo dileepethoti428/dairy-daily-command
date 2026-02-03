@@ -2664,45 +2664,61 @@ export type Database = {
       }
       milk_entries: {
         Row: {
+          center_id: string | null
           created_at: string
           entry_date: string
           farmer_id: string
           fat_percentage: number | null
           id: string
           quantity_liters: number
+          rate_per_litre: number | null
           recorded_by: string | null
-          session: string
+          session: string | null
           settlement_id: string | null
           snf_percentage: number | null
+          total_amount: number | null
           updated_at: string
         }
         Insert: {
+          center_id?: string | null
           created_at?: string
           entry_date?: string
           farmer_id: string
           fat_percentage?: number | null
           id?: string
           quantity_liters: number
+          rate_per_litre?: number | null
           recorded_by?: string | null
-          session: string
+          session?: string | null
           settlement_id?: string | null
           snf_percentage?: number | null
+          total_amount?: number | null
           updated_at?: string
         }
         Update: {
+          center_id?: string | null
           created_at?: string
           entry_date?: string
           farmer_id?: string
           fat_percentage?: number | null
           id?: string
           quantity_liters?: number
+          rate_per_litre?: number | null
           recorded_by?: string | null
-          session?: string
+          session?: string | null
           settlement_id?: string | null
           snf_percentage?: number | null
+          total_amount?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "milk_entries_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "collection_centers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "milk_entries_farmer_id_fkey"
             columns: ["farmer_id"]

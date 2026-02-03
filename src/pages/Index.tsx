@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFarmers } from '@/hooks/useFarmers';
+import { useTodayStats } from '@/hooks/useMilkEntries';
 import {
   Plus,
   List,
@@ -18,14 +19,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// Dummy data for the homepage
-const todayStats = {
-  totalMilk: 1245.5,
-  farmersServed: 42,
-  avgFat: 4.2,
-  avgSnf: 8.5,
-};
 
 const alerts = [
   { id: '1', type: 'warning', message: '3 farmers have pending settlements', action: 'View' },
@@ -40,6 +33,9 @@ export default function Index() {
   const { data: farmers, isLoading: farmersLoading } = useFarmers();
   const recentFarmers = farmers?.slice(0, 5) || [];
   const currentHour = today.getHours();
+  
+  // Fetch today's stats from milk entries
+  const { data: todayStats, isLoading: statsLoading } = useTodayStats();
   const isCollectionOpen = currentHour >= 5 && currentHour < 20; // 5 AM to 8 PM
 
   return (
@@ -70,7 +66,11 @@ export default function Index() {
 
         {/* Primary Actions */}
         <div className="grid grid-cols-2 gap-3">
-          <Button className="h-14 text-base font-medium shadow-dairy" size="lg">
+          <Button 
+            className="h-14 text-base font-medium shadow-dairy" 
+            size="lg"
+            onClick={() => navigate('/milk/add')}
+          >
             <Plus className="mr-2 h-5 w-5" />
             Add Entry
           </Button>
@@ -78,6 +78,7 @@ export default function Index() {
             variant="secondary"
             className="h-14 text-base font-medium shadow-dairy"
             size="lg"
+            onClick={() => navigate('/milk/today')}
           >
             <List className="mr-2 h-5 w-5" />
             View Today
@@ -93,47 +94,55 @@ export default function Index() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-lg bg-secondary p-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Droplets className="h-4 w-4" />
-                  <span className="text-xs">Total Milk</span>
-                </div>
-                <p className="mt-1 text-2xl font-semibold text-foreground">
-                  {todayStats.totalMilk.toLocaleString()}
-                  <span className="ml-1 text-sm font-normal text-muted-foreground">L</span>
-                </p>
+            {statsLoading ? (
+              <div className="grid grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20 rounded-lg" />
+                ))}
               </div>
-              <div className="rounded-lg bg-secondary p-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span className="text-xs">Farmers</span>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-lg bg-secondary p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Droplets className="h-4 w-4" />
+                    <span className="text-xs">Total Milk</span>
+                  </div>
+                  <p className="mt-1 text-2xl font-semibold text-foreground">
+                    {(todayStats?.totalMilk || 0).toLocaleString()}
+                    <span className="ml-1 text-sm font-normal text-muted-foreground">L</span>
+                  </p>
                 </div>
-                <p className="mt-1 text-2xl font-semibold text-foreground">
-                  {todayStats.farmersServed}
-                </p>
-              </div>
-              <div className="rounded-lg bg-secondary p-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Beaker className="h-4 w-4" />
-                  <span className="text-xs">Avg FAT</span>
+                <div className="rounded-lg bg-secondary p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span className="text-xs">Farmers</span>
+                  </div>
+                  <p className="mt-1 text-2xl font-semibold text-foreground">
+                    {todayStats?.totalFarmers || 0}
+                  </p>
                 </div>
-                <p className="mt-1 text-2xl font-semibold text-foreground">
-                  {todayStats.avgFat}
-                  <span className="ml-1 text-sm font-normal text-muted-foreground">%</span>
-                </p>
-              </div>
-              <div className="rounded-lg bg-secondary p-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Beaker className="h-4 w-4" />
-                  <span className="text-xs">Avg SNF</span>
+                <div className="rounded-lg bg-secondary p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Beaker className="h-4 w-4" />
+                    <span className="text-xs">Avg FAT</span>
+                  </div>
+                  <p className="mt-1 text-2xl font-semibold text-foreground">
+                    {todayStats?.avgFat || 0}
+                    <span className="ml-1 text-sm font-normal text-muted-foreground">%</span>
+                  </p>
                 </div>
-                <p className="mt-1 text-2xl font-semibold text-foreground">
-                  {todayStats.avgSnf}
-                  <span className="ml-1 text-sm font-normal text-muted-foreground">%</span>
-                </p>
+                <div className="rounded-lg bg-secondary p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Beaker className="h-4 w-4" />
+                    <span className="text-xs">Avg SNF</span>
+                  </div>
+                  <p className="mt-1 text-2xl font-semibold text-foreground">
+                    {todayStats?.avgSnf || 0}
+                    <span className="ml-1 text-sm font-normal text-muted-foreground">%</span>
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 

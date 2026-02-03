@@ -16,6 +16,7 @@ import {
   MapPin,
   Milk,
   Phone,
+  Plus,
   User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -187,25 +188,34 @@ export default function FarmerDetail() {
         </Card>
 
         {/* Actions */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
           <Button
-            variant="default"
-            className="h-14"
-            onClick={() => navigate(`/farmers/${farmer.id}/edit`)}
+            className="h-14 w-full"
+            onClick={() => navigate(`/milk/add?farmerId=${farmer.id}`)}
           >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Farmer
+            <Plus className="mr-2 h-4 w-4" />
+            Add Milk Entry
           </Button>
-          <Button
-            variant="outline"
-            className="h-14"
-            onClick={() => {
-              // Placeholder for milk history
-            }}
-          >
-            <History className="mr-2 h-4 w-4" />
-            Milk History
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              className="h-14"
+              onClick={() => navigate(`/farmers/${farmer.id}/edit`)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Farmer
+            </Button>
+            <Button
+              variant="outline"
+              className="h-14"
+              onClick={() => {
+                // Placeholder for milk history
+              }}
+            >
+              <History className="mr-2 h-4 w-4" />
+              Milk History
+            </Button>
+          </div>
         </div>
       </div>
     </AppLayout>
