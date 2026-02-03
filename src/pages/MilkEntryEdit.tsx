@@ -70,6 +70,38 @@ export default function MilkEntryEdit() {
 
   const entryDate = parseISO(entry.entry_date);
   const canEdit = isToday(entryDate);
+  const isLocked = (entry as any).is_locked === true;
+
+  // Check if entry is locked (part of a locked settlement)
+  if (isLocked) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-lg p-4">
+          <Button
+            variant="ghost"
+            className="mb-4 -ml-2"
+            onClick={() => navigate(`/milk/${id}`)}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <Card className="border-destructive shadow-dairy">
+            <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+              <Lock className="h-12 w-12 text-destructive" />
+              <h2 className="text-lg font-semibold">Entry is Locked</h2>
+              <p className="text-sm text-muted-foreground">
+                This entry belongs to a locked settlement period and cannot be edited.
+                Contact an administrator if changes are required.
+              </p>
+              <Button onClick={() => navigate(`/milk/${id}`)}>
+                View Entry Details
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!canEdit) {
     return (

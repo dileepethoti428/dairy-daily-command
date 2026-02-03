@@ -6,12 +6,14 @@ export interface MilkEntry {
   id: string;
   farmer_id: string;
   center_id: string | null;
+  settlement_id: string | null;
   entry_date: string;
   quantity_liters: number;
   fat_percentage: number;
   snf_percentage: number;
   rate_per_litre: number | null;
   total_amount: number | null;
+  is_locked: boolean;
   recorded_by: string | null;
   created_at: string;
   updated_at: string;

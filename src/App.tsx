@@ -18,6 +18,8 @@ import MilkEntryAdd from "./pages/MilkEntryAdd";
 import TodayEntries from "./pages/TodayEntries";
 import MilkEntryDetail from "./pages/MilkEntryDetail";
 import MilkEntryEdit from "./pages/MilkEntryEdit";
+import SettlementList from "./pages/SettlementList";
+import SettlementDetail from "./pages/SettlementDetail";
 
 const queryClient = new QueryClient();
 
@@ -115,6 +117,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MilkEntryEdit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settlements"
+              element={
+                <ProtectedRoute>
+                  <SettlementList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settlements/:id"
+              element={
+                <ProtectedRoute>
+                  <SettlementDetail />
                 </ProtectedRoute>
               }
             />

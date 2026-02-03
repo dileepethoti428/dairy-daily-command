@@ -2670,6 +2670,7 @@ export type Database = {
           farmer_id: string
           fat_percentage: number | null
           id: string
+          is_locked: boolean
           quantity_liters: number
           rate_per_litre: number | null
           recorded_by: string | null
@@ -2686,6 +2687,7 @@ export type Database = {
           farmer_id: string
           fat_percentage?: number | null
           id?: string
+          is_locked?: boolean
           quantity_liters: number
           rate_per_litre?: number | null
           recorded_by?: string | null
@@ -2702,6 +2704,7 @@ export type Database = {
           farmer_id?: string
           fat_percentage?: number | null
           id?: string
+          is_locked?: boolean
           quantity_liters?: number
           rate_per_litre?: number | null
           recorded_by?: string | null
@@ -5153,28 +5156,49 @@ export type Database = {
         Row: {
           center_id: string
           created_at: string
+          created_by: string | null
           end_date: string
           id: string
+          locked_at: string | null
+          locked_by: string | null
+          paid_at: string | null
+          paid_by: string | null
           start_date: string
           status: string
+          total_amount: number | null
+          total_litres: number | null
           updated_at: string
         }
         Insert: {
           center_id: string
           created_at?: string
+          created_by?: string | null
           end_date: string
           id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           start_date: string
           status?: string
+          total_amount?: number | null
+          total_litres?: number | null
           updated_at?: string
         }
         Update: {
           center_id?: string
           created_at?: string
+          created_by?: string | null
           end_date?: string
           id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           start_date?: string
           status?: string
+          total_amount?: number | null
+          total_litres?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -8489,6 +8513,10 @@ export type Database = {
         Args: { p_coupon_id: string; p_user_id: string }
         Returns: boolean
       }
+      lock_settlement: {
+        Args: { p_settlement_id: string; p_user_id: string }
+        Returns: boolean
+      }
       log_secret_code_usage: {
         Args: {
           input_code: string
@@ -8545,6 +8573,10 @@ export type Database = {
         Returns: undefined
       }
       mark_payout_paid: { Args: { payout_id: string }; Returns: undefined }
+      mark_settlement_paid: {
+        Args: { p_settlement_id: string; p_user_id: string }
+        Returns: boolean
+      }
       notify_nearby_delivery_agents_for_order: {
         Args: { p_order_id: string }
         Returns: undefined
@@ -9413,6 +9445,10 @@ export type Database = {
             }
             Returns: Json
           }
+      update_settlement_totals: {
+        Args: { p_settlement_id: string }
+        Returns: undefined
+      }
       update_subscription_next_delivery: {
         Args: { p_subscription_id: string }
         Returns: Json
