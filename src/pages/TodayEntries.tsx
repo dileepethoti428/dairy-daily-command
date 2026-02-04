@@ -9,15 +9,18 @@ import { MilkEntryCard } from '@/components/milk/MilkEntryCard';
 import { PDFActionSheet } from '@/components/pdf/PDFActionSheet';
 import { useMilkEntries, useTodayStats } from '@/hooks/useMilkEntries';
 import { generateDailyReport } from '@/hooks/usePDFReports';
+import { useCenter } from '@/contexts/CenterContext';
 import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, Plus, FileText } from 'lucide-react';
+
 export default function TodayEntries() {
   const navigate = useNavigate();
+  const { selectedCenter } = useCenter();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showPDFSheet, setShowPDFSheet] = useState(false);
   const formattedDate = format(selectedDate, 'yyyy-MM-dd');
 
-  const { data: entries, isLoading: entriesLoading } = useMilkEntries(formattedDate);
-  const { data: stats, isLoading: statsLoading } = useTodayStats();
+  const { data: entries, isLoading: entriesLoading } = useMilkEntries(formattedDate, selectedCenter?.id);
+  const { data: stats, isLoading: statsLoading } = useTodayStats(selectedCenter?.id);
 
   const handlePrevDay = () => {
     setSelectedDate((prev) => subDays(prev, 1));
@@ -169,7 +172,7 @@ export default function TodayEntries() {
         onOpenChange={setShowPDFSheet}
         title="Daily Collection Report"
         description={`Report for ${format(selectedDate, 'dd MMMM yyyy')}`}
-        generatePDF={() => generateDailyReport(formattedDate)}
+        generatePDF={() => generateDailyReport(formattedDate, selectedCenter?.id)}
         filename={`daily-collection-${formattedDate}.pdf`}
       />
     </AppLayout>

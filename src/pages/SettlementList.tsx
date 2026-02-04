@@ -8,18 +8,17 @@ import { SettlementCard } from '@/components/settlements/SettlementCard';
 import { CreateSettlementDialog } from '@/components/settlements/CreateSettlementDialog';
 import { useSettlements, useCurrentOpenSettlement } from '@/hooks/useSettlements';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Plus, FileText, AlertCircle, Lock } from 'lucide-react';
-
-// Using a placeholder center ID for now - in a real app this would come from user context
-const DEFAULT_CENTER_ID = '00000000-0000-0000-0000-000000000000';
+import { useCenter } from '@/contexts/CenterContext';
+import { ArrowLeft, Plus, FileText, AlertCircle, Lock, Building2 } from 'lucide-react';
 
 export default function SettlementList() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { selectedCenter } = useCenter();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   
-  const { data: settlements, isLoading } = useSettlements();
-  const { data: openSettlement } = useCurrentOpenSettlement();
+  const { data: settlements, isLoading } = useSettlements(selectedCenter?.id);
+  const { data: openSettlement } = useCurrentOpenSettlement(selectedCenter?.id);
 
   return (
     <AppLayout>
@@ -40,13 +39,28 @@ export default function SettlementList() {
               <p className="text-sm text-muted-foreground">15-day payment cycles</p>
             </div>
           </div>
-          {isAdmin && !openSettlement && (
+          {isAdmin && !openSettlement && selectedCenter && (
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New
             </Button>
           )}
         </div>
+
+        {/* No Center Selected Warning */}
+        {!selectedCenter && (
+          <Card className="mb-4 border-warning bg-warning/5 shadow-dairy">
+            <CardContent className="flex items-center gap-3 p-4">
+              <Building2 className="h-5 w-5 text-warning" />
+              <div className="flex-1">
+                <p className="font-medium text-foreground">No Center Selected</p>
+                <p className="text-sm text-muted-foreground">
+                  Please select a collection center to view settlements.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Staff notice */}
         {!isAdmin && (
@@ -123,11 +137,13 @@ export default function SettlementList() {
       </div>
 
       {/* Create Settlement Dialog */}
-      <CreateSettlementDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        centerId={DEFAULT_CENTER_ID}
-      />
+      {selectedCenter && (
+        <CreateSettlementDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+          centerId={selectedCenter.id}
+        />
+      )}
     </AppLayout>
   );
 }

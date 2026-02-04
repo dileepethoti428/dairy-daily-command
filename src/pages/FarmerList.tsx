@@ -7,14 +7,16 @@ import { FarmerFilter, FilterStatus } from '@/components/farmers/FarmerFilter';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFarmers } from '@/hooks/useFarmers';
+import { useCenter } from '@/contexts/CenterContext';
 import { Plus, Users } from 'lucide-react';
 
 export default function FarmerList() {
   const navigate = useNavigate();
+  const { selectedCenter } = useCenter();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
 
-  const { data: farmers, isLoading, error } = useFarmers();
+  const { data: farmers, isLoading, error } = useFarmers(selectedCenter?.id);
 
   const filteredFarmers = useMemo(() => {
     if (!farmers) return [];

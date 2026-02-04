@@ -7,6 +7,7 @@ import { MilkEntryForm, type MilkEntryFormValues } from '@/components/milk/MilkE
 import { useCreateMilkEntry, useCheckDuplicateEntry } from '@/hooks/useMilkEntries';
 import { useFarmer } from '@/hooks/useFarmers';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCenter } from '@/contexts/CenterContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -26,6 +27,7 @@ export default function MilkEntryAdd() {
   const preselectedFarmerId = searchParams.get('farmerId') || '';
   const { toast } = useToast();
   const { userRole } = useAuth();
+  const { selectedCenter } = useCenter();
   const isAdmin = userRole === 'admin';
 
   const [showSuccess, setShowSuccess] = useState(false);
@@ -52,6 +54,7 @@ export default function MilkEntryAdd() {
         snf_percentage: values.snf_percentage,
         rate_per_litre: values.rate_per_litre,
         total_amount: values.total_amount,
+        center_id: selectedCenter?.id,
       });
 
       setShowSuccess(true);
