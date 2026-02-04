@@ -4,11 +4,13 @@ import { FarmerForm, FarmerFormData } from '@/components/farmers/FarmerForm';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCreateFarmer, useCollectionCenters } from '@/hooks/useFarmers';
+import { useCenter } from '@/contexts/CenterContext';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 
 export default function FarmerAdd() {
   const navigate = useNavigate();
   const createFarmer = useCreateFarmer();
+  const { selectedCenter } = useCenter();
   const { data: centers, isLoading: centersLoading } = useCollectionCenters();
 
   const handleSubmit = (data: FarmerFormData) => {
@@ -93,6 +95,7 @@ export default function FarmerAdd() {
           onSubmit={handleSubmit}
           isLoading={createFarmer.isPending}
           centers={centers}
+          defaultValues={selectedCenter ? { center_id: selectedCenter.id } : undefined}
         />
       </div>
     </AppLayout>

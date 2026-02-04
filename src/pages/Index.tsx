@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useFarmers } from '@/hooks/useFarmers';
 import { useTodayStats } from '@/hooks/useMilkEntries';
 import { useCurrentOpenSettlement } from '@/hooks/useSettlements';
+import { useCenter } from '@/contexts/CenterContext';
 import {
   Plus,
   List,
@@ -19,23 +20,25 @@ import {
   Calendar,
   ChevronRight,
   Lock,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Index() {
   const navigate = useNavigate();
   const today = new Date();
+  const { selectedCenter } = useCenter();
   
-  // Fetch recent farmers from Supabase
-  const { data: farmers, isLoading: farmersLoading } = useFarmers();
+  // Fetch recent farmers from Supabase scoped to selected center
+  const { data: farmers, isLoading: farmersLoading } = useFarmers(selectedCenter?.id);
   const recentFarmers = farmers?.slice(0, 5) || [];
   const currentHour = today.getHours();
   
-  // Fetch today's stats from milk entries
-  const { data: todayStats, isLoading: statsLoading } = useTodayStats();
+  // Fetch today's stats from milk entries scoped to selected center
+  const { data: todayStats, isLoading: statsLoading } = useTodayStats(selectedCenter?.id);
   
-  // Fetch current open settlement
-  const { data: openSettlement, isLoading: settlementLoading } = useCurrentOpenSettlement();
+  // Fetch current open settlement scoped to selected center
+  const { data: openSettlement, isLoading: settlementLoading } = useCurrentOpenSettlement(selectedCenter?.id);
   
   const isCollectionOpen = currentHour >= 5 && currentHour < 20; // 5 AM to 8 PM
   

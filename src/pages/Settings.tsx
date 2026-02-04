@@ -2,12 +2,13 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon, User, LogOut, Shield } from 'lucide-react';
+import { Settings as SettingsIcon, User, LogOut, Shield, Building2, Cog } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 export default function Settings() {
-  const { user, userRole, signOut } = useAuth();
+  const { user, userRole, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -54,12 +55,45 @@ export default function Settings() {
               Settings
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <p className="text-muted-foreground">
               Additional settings coming soon. You'll be able to configure notifications, preferences, and more.
             </p>
           </CardContent>
         </Card>
+
+        {/* Admin Section */}
+        {isAdmin && (
+          <>
+            <Separator />
+            <Card className="shadow-dairy">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Administration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/system-settings')}
+                >
+                  <Cog className="mr-2 h-4 w-4" />
+                  System Settings
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/centers')}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Collection Centers
+                </Button>
+              </CardContent>
+            </Card>
+          </>
+        )}
 
         {/* Sign Out */}
         <Button

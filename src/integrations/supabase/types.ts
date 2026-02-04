@@ -1140,6 +1140,7 @@ export type Database = {
           name: string
           phone: string | null
           updated_at: string
+          village_or_area: string | null
         }
         Insert: {
           address?: string | null
@@ -1150,6 +1151,7 @@ export type Database = {
           name: string
           phone?: string | null
           updated_at?: string
+          village_or_area?: string | null
         }
         Update: {
           address?: string | null
@@ -1160,6 +1162,7 @@ export type Database = {
           name?: string
           phone?: string | null
           updated_at?: string
+          village_or_area?: string | null
         }
         Relationships: []
       }
@@ -5834,6 +5837,36 @@ export type Database = {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_editable: boolean | null
+          setting_key: string
+          setting_value: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_editable?: boolean | null
+          setting_key: string
+          setting_value?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_editable?: boolean | null
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       todays_best_deals: {
         Row: {
           created_at: string | null
@@ -5995,6 +6028,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_center_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          center_id: string
+          created_at: string | null
+          id: string
+          is_primary: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          center_id: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          center_id?: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_center_assignments_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "collection_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_devices: {
         Row: {
@@ -8389,6 +8463,7 @@ export type Database = {
         }[]
       }
       get_user_category_stats: { Args: never; Returns: Json }
+      get_user_center: { Args: { p_user_id: string }; Returns: string }
       get_user_coupons: {
         Args: { p_user_id: string }
         Returns: {
@@ -9480,6 +9555,10 @@ export type Database = {
           p_phone: string
         }
         Returns: string
+      }
+      user_has_center_access: {
+        Args: { p_center_id: string; p_user_id: string }
+        Returns: boolean
       }
       validate_bank_details_v2: {
         Args: {

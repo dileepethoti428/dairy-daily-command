@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCenter } from '@/contexts/CenterContext';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -16,20 +16,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Milk, ChevronDown, LogOut, User, Settings } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Milk, LogOut, User, Settings, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// Dummy collection centers for now
-const dummyCenters = [
-  { id: '1', name: 'Main Center', code: 'MC001' },
-  { id: '2', name: 'North Branch', code: 'NB002' },
-  { id: '3', name: 'South Branch', code: 'SB003' },
-];
-
 export function AppHeader() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
+  const { selectedCenter, setSelectedCenter, centers, isLoading: centersLoading, canSwitchCenters } = useCenter();
   const navigate = useNavigate();
-  const [selectedCenter, setSelectedCenter] = useState(dummyCenters[0].id);
 
   const handleSignOut = async () => {
     await signOut();
@@ -39,6 +34,13 @@ export function AppHeader() {
   const getUserInitials = () => {
     if (!user?.email) return 'U';
     return user.email.charAt(0).toUpperCase();
+  };
+
+  const handleCenterChange = (centerId: string) => {
+    const center = centers.find(c => c.id === centerId);
+    if (center) {
+      setSelectedCenter(center);
+    }
   };
 
   return (
@@ -55,18 +57,46 @@ export function AppHeader() {
         </div>
 
         {/* Center Selector */}
-        <Select value={selectedCenter} onValueChange={setSelectedCenter}>
-          <SelectTrigger className="h-9 w-auto min-w-[140px] border-none bg-secondary text-sm font-medium">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {dummyCenters.map((center) => (
-              <SelectItem key={center.id} value={center.id}>
-                {center.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {centersLoading ? (
+          <Skeleton className="h-9 w-[140px]" />
+        ) : canSwitchCenters && centers.length > 0 ? (
+          // Admin: Can switch centers
+          <Select 
+            value={selectedCenter?.id || ''} 
+            onValueChange={handleCenterChange}
+          >
+            <SelectTrigger className="h-9 w-auto min-w-[140px] max-w-[180px] border-none bg-secondary text-sm font-medium">
+              <div className="flex items-center gap-2 truncate">
+                <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <SelectValue placeholder="Select Center" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {centers.map((center) => (
+                <SelectItem key={center.id} value={center.id}>
+                  <div className="flex items-center gap-2">
+                    <span>{center.name}</span>
+                    {!center.is_active && (
+                      <Badge variant="outline" className="text-xs">Inactive</Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : selectedCenter ? (
+          // Staff: Show assigned center (static)
+          <div className="flex h-9 items-center gap-2 rounded-md bg-secondary px-3 text-sm font-medium">
+            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="max-w-[120px] truncate">{selectedCenter.name}</span>
+          </div>
+        ) : (
+          // No center assigned
+          <div className="flex h-9 items-center gap-2 rounded-md bg-muted px-3 text-sm text-muted-foreground">
+            <Building2 className="h-3.5 w-3.5" />
+            <span>No Center</span>
+          </div>
+        )}
 
         {/* Profile Menu */}
         <DropdownMenu>
@@ -88,6 +118,19 @@ export function AppHeader() {
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/system-settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  System Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/centers')}>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Collection Centers
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
