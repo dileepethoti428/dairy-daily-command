@@ -6,9 +6,11 @@ import { FarmerSearch } from '@/components/farmers/FarmerSearch';
 import { FarmerFilter, FilterStatus } from '@/components/farmers/FarmerFilter';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, NoSearchResults } from '@/components/ui/empty-state';
+import { ErrorDisplay, getReadableErrorMessage } from '@/components/ui/error-display';
 import { useFarmers } from '@/hooks/useFarmers';
 import { useCenter } from '@/contexts/CenterContext';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, UserPlus } from 'lucide-react';
 
 export default function FarmerList() {
   const navigate = useNavigate();
@@ -16,7 +18,9 @@ export default function FarmerList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
 
-  const { data: farmers, isLoading, error } = useFarmers(selectedCenter?.id);
+  const { data: farmers, isLoading, error, refetch } = useFarmers(selectedCenter?.id);
+  
+  const hasNoFarmers = !isLoading && (!farmers || farmers.length === 0);
 
   const filteredFarmers = useMemo(() => {
     if (!farmers) return [];
@@ -67,19 +71,37 @@ export default function FarmerList() {
               <Skeleton key={i} className="h-24 rounded-lg" />
             ))
           ) : error ? (
-            <div className="rounded-lg bg-destructive/10 p-4 text-center text-destructive">
-              Failed to load farmers. Please try again.
-            </div>
+            <ErrorDisplay
+              message={getReadableErrorMessage(error)}
+              onRetry={() => refetch()}
+              variant="card"
+            />
+          ) : hasNoFarmers ? (
+            <EmptyState
+              icon={UserPlus}
+              title="No farmers registered yet"
+              description="Register your first farmer to start collecting milk entries. Farmers are linked to your collection center."
+              action={{
+                label: 'Add First Farmer',
+                onClick: () => navigate('/farmers/add'),
+                icon: Plus,
+              }}
+              variant="card"
+            />
+          ) : filteredFarmers.length === 0 && searchQuery ? (
+            <NoSearchResults 
+              query={searchQuery} 
+              onClear={() => setSearchQuery('')} 
+            />
           ) : filteredFarmers.length === 0 ? (
-            <div className="rounded-lg bg-muted p-8 text-center">
-              <Users className="mx-auto mb-2 h-12 w-12 text-muted-foreground" />
-              <p className="font-medium text-foreground">No farmers found</p>
-              <p className="text-sm text-muted-foreground">
-                {searchQuery
-                  ? 'Try a different search term'
-                  : 'Add your first farmer to get started'}
-              </p>
-            </div>
+            <EmptyState
+              icon={Users}
+              title="No farmers match filters"
+              description={filterStatus === 'inactive' 
+                ? 'No inactive farmers found.' 
+                : 'No active farmers found.'}
+              variant="muted"
+            />
           ) : (
             filteredFarmers.map((farmer) => (
               <FarmerCard

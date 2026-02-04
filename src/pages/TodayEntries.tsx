@@ -4,13 +4,15 @@ import { format, subDays, addDays, isToday } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorDisplay, getReadableErrorMessage } from '@/components/ui/error-display';
 import { MilkEntrySummary } from '@/components/milk/MilkEntrySummary';
 import { MilkEntryCard } from '@/components/milk/MilkEntryCard';
 import { PDFActionSheet } from '@/components/pdf/PDFActionSheet';
 import { useMilkEntries, useTodayStats } from '@/hooks/useMilkEntries';
 import { generateDailyReport } from '@/hooks/usePDFReports';
 import { useCenter } from '@/contexts/CenterContext';
-import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, Plus, FileText } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, Plus, FileText, Milk } from 'lucide-react';
 
 export default function TodayEntries() {
   const navigate = useNavigate();
@@ -19,7 +21,7 @@ export default function TodayEntries() {
   const [showPDFSheet, setShowPDFSheet] = useState(false);
   const formattedDate = format(selectedDate, 'yyyy-MM-dd');
 
-  const { data: entries, isLoading: entriesLoading } = useMilkEntries(formattedDate, selectedCenter?.id);
+  const { data: entries, isLoading: entriesLoading, error: entriesError, refetch } = useMilkEntries(formattedDate, selectedCenter?.id);
   const { data: stats, isLoading: statsLoading } = useTodayStats(selectedCenter?.id);
 
   const handlePrevDay = () => {
@@ -134,19 +136,26 @@ export default function TodayEntries() {
                 <Skeleton key={i} className="h-20 rounded-lg" />
               ))}
             </div>
+          ) : entriesError ? (
+            <ErrorDisplay
+              message={getReadableErrorMessage(entriesError)}
+              onRetry={() => refetch()}
+              variant="card"
+            />
           ) : entries?.length === 0 ? (
-            <div className="rounded-lg bg-muted p-8 text-center">
-              <p className="text-muted-foreground">No entries for this date</p>
-              {isToday(selectedDate) && (
-                <Button
-                  variant="link"
-                  className="mt-2"
-                  onClick={() => navigate('/milk/add')}
-                >
-                  Add your first entry
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              icon={Milk}
+              title={isToday(selectedDate) ? 'No entries yet today' : 'No entries for this date'}
+              description={isToday(selectedDate) 
+                ? 'Start your collection by adding the first milk entry.' 
+                : 'No milk was collected on this date.'}
+              action={isToday(selectedDate) ? {
+                label: 'Add First Entry',
+                onClick: () => navigate('/milk/add'),
+                icon: Plus,
+              } : undefined}
+              variant="muted"
+            />
           ) : (
             <div className="space-y-2">
               {entries?.map((entry) => (

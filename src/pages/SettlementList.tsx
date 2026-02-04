@@ -4,12 +4,14 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorDisplay, getReadableErrorMessage } from '@/components/ui/error-display';
 import { SettlementCard } from '@/components/settlements/SettlementCard';
 import { CreateSettlementDialog } from '@/components/settlements/CreateSettlementDialog';
 import { useSettlements, useCurrentOpenSettlement } from '@/hooks/useSettlements';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCenter } from '@/contexts/CenterContext';
-import { ArrowLeft, Plus, FileText, AlertCircle, Lock, Building2 } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, AlertCircle, Lock, Building2, CalendarDays } from 'lucide-react';
 
 export default function SettlementList() {
   const navigate = useNavigate();
@@ -17,7 +19,7 @@ export default function SettlementList() {
   const { selectedCenter } = useCenter();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   
-  const { data: settlements, isLoading } = useSettlements(selectedCenter?.id);
+  const { data: settlements, isLoading, error, refetch } = useSettlements(selectedCenter?.id);
   const { data: openSettlement } = useCurrentOpenSettlement(selectedCenter?.id);
 
   return (
@@ -109,24 +111,30 @@ export default function SettlementList() {
               Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="h-20 rounded-lg" />
               ))
+            ) : error ? (
+              <ErrorDisplay
+                message={getReadableErrorMessage(error)}
+                onRetry={() => refetch()}
+              />
             ) : settlements?.length === 0 ? (
-              <div className="rounded-lg bg-muted p-6 text-center">
-                <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  No settlements yet
-                </p>
-                {isAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                    onClick={() => setShowCreateDialog(true)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create First Settlement
-                  </Button>
+              <EmptyState
+                icon={CalendarDays}
+                title="No settlements yet"
+                description="Settlements group milk entries into 15-day payment cycles. Create your first settlement to start tracking farmer payments."
+                action={isAdmin ? {
+                  label: 'Create First Settlement',
+                  onClick: () => setShowCreateDialog(true),
+                  icon: Plus,
+                } : undefined}
+                variant="muted"
+                className="py-6"
+              >
+                {!isAdmin && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Only admins can create settlements.
+                  </p>
                 )}
-              </div>
+              </EmptyState>
             ) : (
               settlements?.map((settlement) => (
                 <SettlementCard key={settlement.id} settlement={settlement} />

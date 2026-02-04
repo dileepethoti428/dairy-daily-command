@@ -138,22 +138,36 @@ export default function SettlementDetail() {
         {isAdmin && settlement.status === 'open' && (
           <Card className="shadow-dairy">
             <CardContent className="p-4">
-              <Button
-                className="w-full h-12"
-                variant="destructive"
-                onClick={() => setShowLockDialog(true)}
-                disabled={lockSettlement.isPending}
-              >
-                {lockSettlement.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Lock className="mr-2 h-4 w-4" />
-                )}
-                Lock Settlement
-              </Button>
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                Locking will prevent all milk entry edits for this period
-              </p>
+              {(!farmerBreakdown || farmerBreakdown.length === 0) ? (
+                <div className="flex items-center gap-3 rounded-lg bg-muted p-3">
+                  <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Cannot Lock Empty Settlement</p>
+                    <p className="text-xs text-muted-foreground">
+                      Add milk entries to this period before locking.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    className="w-full h-12"
+                    variant="destructive"
+                    onClick={() => setShowLockDialog(true)}
+                    disabled={lockSettlement.isPending || breakdownLoading}
+                  >
+                    {lockSettlement.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Lock className="mr-2 h-4 w-4" />
+                    )}
+                    Lock Settlement
+                  </Button>
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    Locking will prevent all milk entry edits for this period
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         )}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -49,6 +49,7 @@ interface FarmerFormProps {
   isLoading?: boolean;
   isEdit?: boolean;
   centers: Array<{ id: string; name: string; code: string }>;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 export function FarmerForm({
@@ -57,6 +58,7 @@ export function FarmerForm({
   isLoading,
   isEdit = false,
   centers,
+  onDirtyChange,
 }: FarmerFormProps) {
   const { isAdmin } = useAuth();
   const canEditBank = isAdmin || !isEdit;
@@ -70,7 +72,7 @@ export function FarmerForm({
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
   } = useForm<FarmerFormData>({
     resolver: zodResolver(farmerSchema),
     defaultValues: {
@@ -88,6 +90,11 @@ export function FarmerForm({
     },
     mode: 'onChange',
   });
+
+  // Notify parent about dirty state changes
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const isActive = watch('is_active');
   const milkType = watch('milk_type');
