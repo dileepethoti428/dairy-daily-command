@@ -5,7 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorDisplay, getReadableErrorMessage } from '@/components/ui/error-display';
 import { useCurrentOpenSettlement, useSettlements } from '@/hooks/useSettlements';
+import { useCenter } from '@/contexts/CenterContext';
 import {
   FileText,
   Calendar,
@@ -14,6 +17,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Plus,
+  CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,8 +42,9 @@ const statusConfig = {
 
 export default function Reports() {
   const navigate = useNavigate();
-  const { data: openSettlement, isLoading: openLoading } = useCurrentOpenSettlement();
-  const { data: settlements, isLoading: settlementsLoading } = useSettlements();
+  const { selectedCenter } = useCenter();
+  const { data: openSettlement, isLoading: openLoading } = useCurrentOpenSettlement(selectedCenter?.id);
+  const { data: settlements, isLoading: settlementsLoading, error: settlementsError, refetch } = useSettlements(selectedCenter?.id);
   
   const recentSettlements = settlements?.slice(0, 3) || [];
 
@@ -154,18 +160,24 @@ export default function Reports() {
               Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="h-16 rounded-lg" />
               ))
+            ) : settlementsError ? (
+              <ErrorDisplay
+                message={getReadableErrorMessage(settlementsError)}
+                onRetry={() => refetch()}
+              />
             ) : recentSettlements.length === 0 ? (
-              <div className="rounded-lg bg-muted p-4 text-center">
-                <p className="text-sm text-muted-foreground">No settlements yet</p>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="mt-1"
-                  onClick={() => navigate('/settlements')}
-                >
-                  Create your first settlement
-                </Button>
-              </div>
+              <EmptyState
+                icon={CalendarDays}
+                title="No settlements yet"
+                description="Create a 15-day settlement to track farmer payments."
+                action={{
+                  label: 'Create Settlement',
+                  onClick: () => navigate('/settlements'),
+                  icon: Plus,
+                }}
+                variant="muted"
+                className="py-4"
+              />
             ) : (
               recentSettlements.map((settlement) => {
                 const config = statusConfig[settlement.status] || statusConfig.open;

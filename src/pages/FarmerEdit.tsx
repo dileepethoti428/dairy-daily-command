@@ -13,19 +13,31 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { UnsavedChangesDialog } from '@/components/ui/unsaved-changes-dialog';
 import {
   useFarmer,
   useUpdateFarmer,
   useCollectionCenters,
 } from '@/hooks/useFarmers';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ArrowLeft, Edit } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export default function FarmerEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [showDeactivateWarning, setShowDeactivateWarning] = useState(false);
   const [pendingData, setPendingData] = useState<FarmerFormData | null>(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+
+  const { showPrompt, confirmNavigation, cancelNavigation } = useUnsavedChanges({
+    isDirty: isFormDirty,
+    message: 'You have unsaved changes to this farmer. Are you sure you want to leave?',
+  });
+
+  const handleDirtyChange = useCallback((dirty: boolean) => {
+    setIsFormDirty(dirty);
+  }, []);
 
   const { data: farmer, isLoading: farmerLoading } = useFarmer(id || '');
   const { data: centers, isLoading: centersLoading } = useCollectionCenters();
@@ -165,6 +177,7 @@ export default function FarmerEdit() {
           isLoading={updateFarmer.isPending}
           isEdit
           centers={centers}
+          onDirtyChange={handleDirtyChange}
         />
 
         {/* Deactivation Warning Dialog */}
@@ -188,6 +201,13 @@ export default function FarmerEdit() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Unsaved Changes Dialog */}
+        <UnsavedChangesDialog
+          open={showPrompt}
+          onConfirm={confirmNavigation}
+          onCancel={cancelNavigation}
+        />
       </div>
     </AppLayout>
   );

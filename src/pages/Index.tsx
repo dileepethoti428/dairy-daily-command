@@ -5,10 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorDisplay, getReadableErrorMessage } from '@/components/ui/error-display';
 import { useFarmers } from '@/hooks/useFarmers';
 import { useTodayStats } from '@/hooks/useMilkEntries';
 import { useCurrentOpenSettlement } from '@/hooks/useSettlements';
 import { useCenter } from '@/contexts/CenterContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Plus,
   List,
@@ -21,21 +24,23 @@ import {
   ChevronRight,
   Lock,
   Building2,
+  Milk,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Index() {
   const navigate = useNavigate();
   const today = new Date();
-  const { selectedCenter } = useCenter();
+  const { selectedCenter, isLoading: centerLoading } = useCenter();
+  const { isAdmin } = useAuth();
   
   // Fetch recent farmers from Supabase scoped to selected center
-  const { data: farmers, isLoading: farmersLoading } = useFarmers(selectedCenter?.id);
+  const { data: farmers, isLoading: farmersLoading, error: farmersError, refetch: refetchFarmers } = useFarmers(selectedCenter?.id);
   const recentFarmers = farmers?.slice(0, 5) || [];
   const currentHour = today.getHours();
   
   // Fetch today's stats from milk entries scoped to selected center
-  const { data: todayStats, isLoading: statsLoading } = useTodayStats(selectedCenter?.id);
+  const { data: todayStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTodayStats(selectedCenter?.id);
   
   // Fetch current open settlement scoped to selected center
   const { data: openSettlement, isLoading: settlementLoading } = useCurrentOpenSettlement(selectedCenter?.id);
@@ -46,6 +51,9 @@ export default function Index() {
   const daysUntilSettlementEnds = openSettlement 
     ? differenceInDays(new Date(openSettlement.end_date), today)
     : null;
+  
+  const hasNoEntriesToday = !statsLoading && (todayStats?.totalFarmers === 0);
+  const hasNoFarmers = !farmersLoading && (!farmers || farmers.length === 0);
 
   return (
     <AppLayout>
@@ -109,6 +117,24 @@ export default function Index() {
                   <Skeleton key={i} className="h-20 rounded-lg" />
                 ))}
               </div>
+            ) : statsError ? (
+              <ErrorDisplay
+                message={getReadableErrorMessage(statsError)}
+                onRetry={() => refetchStats()}
+              />
+            ) : hasNoEntriesToday ? (
+              <EmptyState
+                icon={Milk}
+                title="No entries yet today"
+                description="Start collecting milk by adding your first entry for today."
+                action={{
+                  label: 'Add First Entry',
+                  onClick: () => navigate('/milk/add'),
+                  icon: Plus,
+                }}
+                variant="muted"
+                className="py-6"
+              />
             ) : (
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-lg bg-secondary p-3">
@@ -179,18 +205,24 @@ export default function Index() {
               Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="h-16 rounded-lg" />
               ))
-            ) : recentFarmers.length === 0 ? (
-              <div className="rounded-lg bg-muted p-4 text-center">
-                <p className="text-sm text-muted-foreground">No farmers yet</p>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="mt-1"
-                  onClick={() => navigate('/farmers/add')}
-                >
-                  Add your first farmer
-                </Button>
-              </div>
+            ) : farmersError ? (
+              <ErrorDisplay
+                message={getReadableErrorMessage(farmersError)}
+                onRetry={() => refetchFarmers()}
+              />
+            ) : hasNoFarmers ? (
+              <EmptyState
+                icon={Users}
+                title="No farmers registered"
+                description="Add your first farmer to start recording milk entries."
+                action={{
+                  label: 'Add First Farmer',
+                  onClick: () => navigate('/farmers/add'),
+                  icon: Plus,
+                }}
+                variant="muted"
+                className="py-4"
+              />
             ) : (
               recentFarmers.map((farmer) => (
                 <button

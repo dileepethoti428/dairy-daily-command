@@ -1,13 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { IndianRupee } from 'lucide-react';
+import { IndianRupee, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ValueWarning, checkMilkQualityWarnings } from '@/components/ui/value-warning';
 import { FarmerSelector } from './FarmerSelector';
 import { cn } from '@/lib/utils';
 
@@ -78,9 +79,17 @@ export function MilkEntryForm({
   const quantity = watch('quantity_liters');
   const rate = watch('rate_per_litre');
   const farmerId = watch('farmer_id');
+  const fatPercentage = watch('fat_percentage');
+  const snfPercentage = watch('snf_percentage');
 
   const totalAmount =
     quantity && rate ? Math.round(quantity * rate * 100) / 100 : 0;
+
+  // Check for unusual values
+  const qualityWarnings = useMemo(() => 
+    checkMilkQualityWarnings(fatPercentage, snfPercentage),
+    [fatPercentage, snfPercentage]
+  );
 
   const handleFormSubmit = (values: MilkEntryFormValues) => {
     onSubmit({
@@ -233,6 +242,15 @@ export function MilkEntryForm({
               )}
             </div>
           </div>
+
+          {/* Quality Warnings */}
+          {qualityWarnings.length > 0 && (
+            <div className="space-y-1">
+              {qualityWarnings.map((warning, i) => (
+                <ValueWarning key={i} message={warning} />
+              ))}
+            </div>
+          )}
 
           {/* Rate */}
           <div className="space-y-2">
