@@ -1,19 +1,29 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { FarmerForm, FarmerFormData } from '@/components/farmers/FarmerForm';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { UnsavedChangesDialog } from '@/components/ui/unsaved-changes-dialog';
 import { useCreateFarmer, useCollectionCenters } from '@/hooks/useFarmers';
 import { useCenter } from '@/contexts/CenterContext';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 
 export default function FarmerAdd() {
+  const [hasChanges, setHasChanges] = useState(false);
   const navigate = useNavigate();
   const createFarmer = useCreateFarmer();
   const { selectedCenter } = useCenter();
   const { data: centers, isLoading: centersLoading } = useCollectionCenters();
 
+  // Block navigation when form has unsaved changes
+  const { showPrompt, confirmNavigation, cancelNavigation } = useUnsavedChanges({ 
+    isDirty: hasChanges 
+  });
+
   const handleSubmit = (data: FarmerFormData) => {
+    setHasChanges(false); // Clear changes before submitting
     createFarmer.mutate(
       {
         full_name: data.full_name,
@@ -33,6 +43,10 @@ export default function FarmerAdd() {
         },
       }
     );
+  };
+
+  const handleDirtyChange = (isDirty: boolean) => {
+    setHasChanges(isDirty);
   };
 
   if (centersLoading) {
@@ -96,8 +110,16 @@ export default function FarmerAdd() {
           isLoading={createFarmer.isPending}
           centers={centers}
           defaultValues={selectedCenter ? { center_id: selectedCenter.id } : undefined}
+          onDirtyChange={handleDirtyChange}
         />
       </div>
+
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog
+        open={showPrompt}
+        onCancel={cancelNavigation}
+        onConfirm={confirmNavigation}
+      />
     </AppLayout>
   );
 }
