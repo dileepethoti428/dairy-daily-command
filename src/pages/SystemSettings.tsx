@@ -18,7 +18,6 @@ import {
   AlertCircle,
   Loader2,
   Lock,
-  Info,
 } from 'lucide-react';
 
 export default function SystemSettings() {
