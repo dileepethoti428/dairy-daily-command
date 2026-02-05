@@ -1,16 +1,18 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { IndianRupee, AlertTriangle, Sun, Moon } from 'lucide-react';
+import { IndianRupee, Sun, Moon, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { ValueWarning, checkMilkQualityWarnings } from '@/components/ui/value-warning';
 import { FarmerSelector } from './FarmerSelector';
 import { cn } from '@/lib/utils';
+import { usePricingSlabs, PricingSlab } from '@/hooks/usePricingSlabs';
 import type { MilkSession } from '@/hooks/useMilkEntries';
 
 const milkEntrySchema = z.object({
@@ -59,6 +61,9 @@ export function MilkEntryForm({
   const fatInputRef = useRef<HTMLInputElement>(null);
   const snfInputRef = useRef<HTMLInputElement>(null);
   const rateInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isAutoRate, setIsAutoRate] = useState(false);
+  const { data: pricingSlabs } = usePricingSlabs();
 
   const {
     register,
@@ -85,6 +90,42 @@ export function MilkEntryForm({
   const fatPercentage = watch('fat_percentage');
   const snfPercentage = watch('snf_percentage');
   const session = watch('session');
+
+  // Find matching pricing slab based on FAT/SNF
+  const findMatchingRate = useCallback((fat: number, snf: number | undefined): number | null => {
+    if (!pricingSlabs || pricingSlabs.length === 0) return null;
+    
+    const activeSlabs = pricingSlabs.filter(s => s.is_active);
+    
+    for (const slab of activeSlabs) {
+      const fatMatches = fat >= slab.min_fat && fat <= slab.max_fat;
+      
+      // If SNF range is defined, check it; otherwise just match FAT
+      const snfMatches = slab.min_snf === null || slab.max_snf === null || 
+        (snf !== undefined && snf >= slab.min_snf && snf <= slab.max_snf);
+      
+      if (fatMatches && snfMatches) {
+        return slab.rate_per_litre;
+      }
+    }
+    return null;
+  }, [pricingSlabs]);
+
+  // Auto-calculate rate when FAT/SNF changes
+  useEffect(() => {
+    if (fatPercentage !== undefined && !isNaN(fatPercentage)) {
+      const matchedRate = findMatchingRate(fatPercentage, snfPercentage);
+      if (matchedRate !== null) {
+        setValue('rate_per_litre', matchedRate, { shouldValidate: true });
+        setIsAutoRate(true);
+      }
+    }
+  }, [fatPercentage, snfPercentage, findMatchingRate, setValue]);
+
+  // Reset auto-rate flag when user manually changes rate
+  const handleRateChange = () => {
+    setIsAutoRate(false);
+  };
 
   const totalAmount =
     quantity && rate ? Math.round(quantity * rate * 100) / 100 : 0;
@@ -289,7 +330,15 @@ export function MilkEntryForm({
 
           {/* Rate */}
           <div className="space-y-2">
-            <Label htmlFor="rate">Rate per Litre (₹)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="rate">Rate per Litre (₹)</Label>
+              {isAutoRate && (
+                <Badge variant="secondary" className="gap-1 text-xs">
+                  <Zap className="h-3 w-3" />
+                  Auto
+                </Badge>
+              )}
+            </div>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 ₹
@@ -303,14 +352,24 @@ export function MilkEntryForm({
                 placeholder="0.00"
                 className={cn(
                   'h-14 pl-8 text-lg',
-                  errors.rate_per_litre && 'border-destructive'
+                  errors.rate_per_litre && 'border-destructive',
+                  isAutoRate && 'border-primary/50 bg-primary/5'
                 )}
                 {...register('rate_per_litre', { valueAsNumber: true })}
+                onChange={(e) => {
+                  register('rate_per_litre', { valueAsNumber: true }).onChange(e);
+                  handleRateChange();
+                }}
               />
             </div>
             {errors.rate_per_litre && (
               <p className="text-sm text-destructive">
                 {errors.rate_per_litre.message}
+              </p>
+            )}
+            {!pricingSlabs?.length && (
+              <p className="text-xs text-muted-foreground">
+                No pricing slabs configured. Enter rate manually.
               </p>
             )}
           </div>
