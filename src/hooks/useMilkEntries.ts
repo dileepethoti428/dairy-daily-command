@@ -159,22 +159,23 @@ export function useTodayStats(centerId?: string) {
   });
 }
 
-// Check if entry exists for farmer on date
-export function useCheckDuplicateEntry(farmerId: string, date: string) {
+// Check if entry exists for farmer on date and session
+export function useCheckDuplicateEntry(farmerId: string, date: string, session: MilkSession) {
   return useQuery({
-    queryKey: ['check-duplicate', farmerId, date],
+    queryKey: ['check-duplicate', farmerId, date, session],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('milk_entries')
         .select('id')
         .eq('farmer_id', farmerId)
         .eq('entry_date', date)
+        .eq('session', session)
         .maybeSingle();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!farmerId && !!date,
+    enabled: !!farmerId && !!date && !!session,
   });
 }
 
