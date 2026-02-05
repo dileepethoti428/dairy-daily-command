@@ -2,12 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
+export type MilkSession = 'morning' | 'evening';
+
 export interface MilkEntry {
   id: string;
   farmer_id: string;
   center_id: string | null;
   settlement_id: string | null;
   entry_date: string;
+  session: MilkSession;
   quantity_liters: number;
   fat_percentage: number;
   snf_percentage: number;
