@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CenterProvider } from "@/contexts/CenterContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -24,154 +25,174 @@ import CenterList from "./pages/CenterList";
 import CenterAdd from "./pages/CenterAdd";
 import CenterDetail from "./pages/CenterDetail";
 import CenterEdit from "./pages/CenterEdit";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <CenterProvider>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/farmers"
-                element={
-                  <ProtectedRoute>
-                    <FarmerList />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/farmers/add"
-                element={
-                  <ProtectedRoute>
-                    <FarmerAdd />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/farmers/:id"
-                element={
-                  <ProtectedRoute>
-                    <FarmerDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/farmers/:id/edit"
-                element={
-                  <ProtectedRoute>
-                    <FarmerEdit />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/reports"
-                element={
-                  <ProtectedRoute>
-                    <Reports />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/system-settings"
-                element={
-                  <ProtectedRoute>
-                    <SystemSettings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/centers"
-                element={
-                  <ProtectedRoute>
-                    <CenterList />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/centers/add"
-                element={
-                  <ProtectedRoute>
-                    <CenterAdd />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/centers/:id"
-                element={
-                  <ProtectedRoute>
-                    <CenterDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/centers/:id/edit"
-                element={
-                  <ProtectedRoute>
-                    <CenterEdit />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/milk/add"
-                element={
-                  <ProtectedRoute>
-                    <MilkEntryAdd />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/milk/today"
-                element={
-                  <ProtectedRoute>
-                    <TodayEntries />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/milk/:id"
-                element={
-                  <ProtectedRoute>
-                    <MilkEntryDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/milk/:id/edit"
-                element={
-                  <ProtectedRoute>
-                    <MilkEntryEdit />
-                  </ProtectedRoute>
-                }
-              />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </CenterProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <CenterProvider>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Index />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/farmers"
+                  element={
+                    <ProtectedRoute>
+                      <FarmerList />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/farmers/add"
+                  element={
+                    <ProtectedRoute>
+                      <FarmerAdd />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/farmers/:id"
+                  element={
+                    <ProtectedRoute>
+                      <FarmerDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/farmers/:id/edit"
+                  element={
+                    <ProtectedRoute>
+                      <FarmerEdit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={
+                    <ProtectedRoute>
+                      <Reports />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/system-settings"
+                  element={
+                    <ProtectedRoute>
+                      <SystemSettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/centers"
+                  element={
+                    <ProtectedRoute>
+                      <CenterList />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/centers/add"
+                  element={
+                    <ProtectedRoute>
+                      <CenterAdd />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/centers/:id"
+                  element={
+                    <ProtectedRoute>
+                      <CenterDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/centers/:id/edit"
+                  element={
+                    <ProtectedRoute>
+                      <CenterEdit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/milk/add"
+                  element={
+                    <ProtectedRoute>
+                      <MilkEntryAdd />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/milk/today"
+                  element={
+                    <ProtectedRoute>
+                      <TodayEntries />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/milk/:id"
+                  element={
+                    <ProtectedRoute>
+                      <MilkEntryDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/milk/:id/edit"
+                  element={
+                    <ProtectedRoute>
+                      <MilkEntryEdit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/privacy-policy"
+                  element={
+                    <ProtectedRoute>
+                      <PrivacyPolicy />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/terms"
+                  element={
+                    <ProtectedRoute>
+                      <TermsAndConditions />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </CenterProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
