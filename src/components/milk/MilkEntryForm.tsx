@@ -70,6 +70,7 @@ export function MilkEntryForm({
     resolver: zodResolver(milkEntrySchema),
     defaultValues: {
       farmer_id: initialValues?.farmer_id || '',
+      session: initialValues?.session || 'morning',
       quantity_liters: initialValues?.quantity_liters,
       fat_percentage: initialValues?.fat_percentage,
       snf_percentage: initialValues?.snf_percentage,
@@ -83,6 +84,7 @@ export function MilkEntryForm({
   const farmerId = watch('farmer_id');
   const fatPercentage = watch('fat_percentage');
   const snfPercentage = watch('snf_percentage');
+  const session = watch('session');
 
   const totalAmount =
     quantity && rate ? Math.round(quantity * rate * 100) / 100 : 0;
