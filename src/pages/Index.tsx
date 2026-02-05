@@ -168,6 +168,9 @@ export default function Index() {
           </CardContent>
         </Card>
 
+        {/* Pending Farmers Widget */}
+        <PendingFarmersWidget centerId={selectedCenter?.id} />
+
         {/* Recent Farmers */}
         <Card className="shadow-dairy">
           <CardHeader className="pb-2">
