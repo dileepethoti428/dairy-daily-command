@@ -328,6 +328,38 @@ export function MilkEntryForm({
             </div>
           )}
 
+          {/* Pricing Slabs Reference */}
+          {pricingSlabs && pricingSlabs.length > 0 && (
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Rate Slabs (FAT %)</p>
+              <div className="flex flex-wrap gap-2">
+                {pricingSlabs.filter(s => s.is_active).map((slab) => {
+                  const isMatched = fatPercentage !== undefined && 
+                    fatPercentage >= slab.min_fat && 
+                    fatPercentage <= slab.max_fat &&
+                    (slab.min_snf === null || slab.max_snf === null || 
+                      (snfPercentage !== undefined && snfPercentage >= slab.min_snf && snfPercentage <= slab.max_snf));
+                  
+                  return (
+                    <div
+                      key={slab.id}
+                      className={cn(
+                        'rounded-md border px-2 py-1 text-xs',
+                        isMatched 
+                          ? 'border-primary bg-primary/10 text-primary font-medium' 
+                          : 'border-border bg-background text-muted-foreground'
+                      )}
+                    >
+                      <span>{slab.min_fat}-{slab.max_fat}%</span>
+                      <span className="mx-1">→</span>
+                      <span className="font-semibold">₹{slab.rate_per_litre}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Rate */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
