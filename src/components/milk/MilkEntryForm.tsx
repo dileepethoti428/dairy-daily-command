@@ -114,14 +114,45 @@ export function MilkEntryForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      {/* Date Display */}
+      {/* Date & Session Display */}
       <Card className="shadow-dairy">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <Label className="text-muted-foreground">Entry Date</Label>
             <span className="text-lg font-medium">
               {format(date ? new Date(date) : new Date(), 'dd MMM yyyy')}
             </span>
+          </div>
+          
+          {/* Session Toggle */}
+          <div className="space-y-2">
+            <Label>Session</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={session === 'morning' ? 'default' : 'outline'}
+                className={cn(
+                  'h-12 flex items-center justify-center gap-2',
+                  session === 'morning' && 'bg-amber-500 hover:bg-amber-600'
+                )}
+                onClick={() => setValue('session', 'morning', { shouldValidate: true })}
+              >
+                <Sun className="h-5 w-5" />
+                Morning
+              </Button>
+              <Button
+                type="button"
+                variant={session === 'evening' ? 'default' : 'outline'}
+                className={cn(
+                  'h-12 flex items-center justify-center gap-2',
+                  session === 'evening' && 'bg-indigo-500 hover:bg-indigo-600'
+                )}
+                onClick={() => setValue('session', 'evening', { shouldValidate: true })}
+              >
+                <Moon className="h-5 w-5" />
+                Evening
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
