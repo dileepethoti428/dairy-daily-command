@@ -241,19 +241,19 @@ export default function Index() {
             <div className="grid grid-cols-2 gap-3">
               <Button 
                 variant="outline" 
-                className="h-12 justify-start"
+                className="h-12 justify-start px-3 text-sm"
                 onClick={() => navigate('/milk/today')}
               >
-                <FileText className="mr-2 h-4 w-4" />
-                Today's Entries
+                <FileText className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Today</span>
               </Button>
               <Button 
                 variant="outline" 
-                className="h-12 justify-start"
+                className="h-12 justify-start px-3 text-sm"
                 onClick={() => navigate('/reports')}
               >
-                <Calendar className="mr-2 h-4 w-4" />
-                Reports
+                <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Reports</span>
               </Button>
             </div>
           </CardContent>

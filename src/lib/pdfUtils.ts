@@ -114,16 +114,22 @@ function addFooter(doc: jsPDF) {
 }
 
 function formatCurrency(amount: number): string {
-  return `₹${amount.toFixed(2)}`;
+  // Using "Rs." instead of ₹ symbol as jsPDF doesn't support Unicode rupee symbol
+  return `Rs.${amount.toFixed(2)}`;
 }
 
 // Daily Collection Report PDF
 export function generateDailyCollectionPDF(data: DailyCollectionData): jsPDF {
   const doc = new jsPDF();
   
+  // Don't show "All Centers" - show empty or use specific center name only
+  const centerDisplay = data.centerName && data.centerName !== 'All Centers' 
+    ? data.centerName 
+    : '';
+  
   const startY = addHeader(doc, {
     appName: 'Milk Procurement System',
-    collectionCenter: data.centerName || 'Collection Center',
+    collectionCenter: centerDisplay,
     reportType: 'Daily Collection Report',
   });
   
@@ -168,26 +174,31 @@ export function generateDailyCollectionPDF(data: DailyCollectionData): jsPDF {
       fillColor: [76, 175, 80],
       textColor: 255,
       fontStyle: 'bold',
+      fontSize: 8,
     },
     footStyles: {
       fillColor: [240, 240, 240],
       textColor: 0,
       fontStyle: 'bold',
+      fontSize: 8,
     },
     styles: {
-      fontSize: 9,
-      cellPadding: 3,
+      fontSize: 8,
+      cellPadding: 2,
+      overflow: 'linebreak',
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 12 },
-      1: { cellWidth: 40 },
-      2: { halign: 'center', cellWidth: 20 },
-      3: { halign: 'right', cellWidth: 20 },
-      4: { halign: 'center', cellWidth: 18 },
-      5: { halign: 'center', cellWidth: 18 },
-      6: { halign: 'right', cellWidth: 22 },
-      7: { halign: 'right', cellWidth: 28 },
+      0: { halign: 'center', cellWidth: 10 },
+      1: { cellWidth: 35 },
+      2: { halign: 'center', cellWidth: 22 },
+      3: { halign: 'right', cellWidth: 18 },
+      4: { halign: 'center', cellWidth: 16 },
+      5: { halign: 'center', cellWidth: 16 },
+      6: { halign: 'right', cellWidth: 24 },
+      7: { halign: 'right', cellWidth: 32 },
     },
+    tableWidth: 'auto',
+    margin: { left: 14, right: 14 },
   });
   
   addFooter(doc);
@@ -410,105 +421,115 @@ export function previewPDF(doc: jsPDF) {
   window.open(url, '_blank');
 }
 
- // Collection Report PDF (new)
- export interface CollectionReportPDFData {
-   centerName: string;
-   startDate: string;
-   endDate: string;
-   periodLabel: string;
-   totalLitres: number;
-   totalAmount: number;
-   totalFarmers: number;
-   totalEntries: number;
-   avgFat: number;
-   avgSnf: number;
-   avgRate: number;
-   farmers: {
-     farmerName: string;
-     farmerId: string;
-     totalLitres: number;
-     totalAmount: number;
-     entriesCount: number;
-   }[];
- }
+// Collection Report PDF (new)
+export interface CollectionReportPDFData {
+  centerName: string;
+  startDate: string;
+  endDate: string;
+  periodLabel: string;
+  totalLitres: number;
+  totalAmount: number;
+  totalFarmers: number;
+  totalEntries: number;
+  avgFat: number;
+  avgSnf: number;
+  avgRate: number;
+  farmers: {
+    farmerName: string;
+    farmerId: string;
+    totalLitres: number;
+    totalAmount: number;
+    entriesCount: number;
+  }[];
+}
 
- export function generateCollectionReportPDF(data: CollectionReportPDFData): jsPDF {
-   const doc = new jsPDF();
+export function generateCollectionReportPDF(data: CollectionReportPDFData): jsPDF {
+  const doc = new jsPDF();
 
-   const startY = addHeader(doc, {
-     appName: 'Milk Procurement System',
-     collectionCenter: data.centerName,
-     reportType: `Collection Report (${data.periodLabel})`,
-   });
+  // Don't show "All Centers" - show empty or use specific center name only
+  const centerDisplay = data.centerName && data.centerName !== 'All Centers' && data.centerName !== 'Collection Center'
+    ? data.centerName
+    : '';
 
-   // Period
-   doc.setFontSize(11);
-   doc.setFont('helvetica', 'bold');
-   doc.text(
-     `Period: ${format(new Date(data.startDate), 'dd MMM yyyy')} - ${format(new Date(data.endDate), 'dd MMM yyyy')}`,
-     14,
-     startY + 5
-   );
+  const startY = addHeader(doc, {
+    appName: 'Milk Procurement System',
+    collectionCenter: centerDisplay,
+    reportType: `Collection Report (${data.periodLabel})`,
+  });
 
-   // Summary stats
-   doc.setFont('helvetica', 'normal');
-   doc.text(`Total Milk Collected: ${data.totalLitres.toFixed(2)} Litres`, 14, startY + 14);
-   doc.text(`Total Amount: ${formatCurrency(data.totalAmount)}`, 14, startY + 21);
-   doc.text(`Total Farmers: ${data.totalFarmers}`, 14, startY + 28);
-   doc.text(`Total Entries: ${data.totalEntries}`, 100, startY + 14);
-   doc.text(`Avg Fat: ${data.avgFat}%`, 100, startY + 21);
-   doc.text(`Avg SNF: ${data.avgSnf}%`, 100, startY + 28);
+  // Period
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(
+    `Period: ${format(new Date(data.startDate), 'dd MMM yyyy')} - ${format(new Date(data.endDate), 'dd MMM yyyy')}`,
+    14,
+    startY + 5
+  );
 
-   // Farmer breakdown table
-   const tableData = data.farmers.map((farmer, index) => [
-     (index + 1).toString(),
-     farmer.farmerName,
-     farmer.farmerId || '-',
-     farmer.entriesCount.toString(),
-     farmer.totalLitres.toFixed(2),
-     formatCurrency(farmer.totalAmount),
-   ]);
+  // Summary stats
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total Milk Collected: ${data.totalLitres.toFixed(2)} Litres`, 14, startY + 14);
+  doc.text(`Total Amount: ${formatCurrency(data.totalAmount)}`, 14, startY + 21);
+  doc.text(`Total Farmers: ${data.totalFarmers}`, 14, startY + 28);
+  doc.text(`Total Entries: ${data.totalEntries}`, 110, startY + 14);
+  doc.text(`Avg Fat: ${data.avgFat}%`, 110, startY + 21);
+  doc.text(`Avg SNF: ${data.avgSnf}%`, 110, startY + 28);
 
-   autoTable(doc, {
-     startY: startY + 38,
-     head: [['#', 'Farmer Name', 'ID', 'Entries', 'Total (L)', 'Amount']],
-     body: tableData,
-     foot: [
-       [
-         '',
-         'GRAND TOTAL',
-         '',
-         data.totalEntries.toString(),
-         data.totalLitres.toFixed(2),
-         formatCurrency(data.totalAmount),
-       ],
-     ],
-     theme: 'striped',
-     headStyles: {
-       fillColor: [76, 175, 80],
-       textColor: 255,
-       fontStyle: 'bold',
-     },
-     footStyles: {
-       fillColor: [240, 240, 240],
-       textColor: 0,
-       fontStyle: 'bold',
-     },
-     styles: {
-       fontSize: 9,
-       cellPadding: 3,
-     },
-     columnStyles: {
-       0: { halign: 'center', cellWidth: 12 },
-       1: { cellWidth: 50 },
-       2: { halign: 'center', cellWidth: 25 },
-       3: { halign: 'center', cellWidth: 20 },
-       4: { halign: 'right', cellWidth: 28 },
-       5: { halign: 'right', cellWidth: 35 },
-     },
-   });
+  // Farmer breakdown table
+  const tableData = data.farmers.map((farmer, index) => [
+    (index + 1).toString(),
+    farmer.farmerName,
+    farmer.farmerId || '-',
+    farmer.entriesCount.toString(),
+    farmer.totalLitres.toFixed(2),
+    formatCurrency(farmer.totalAmount),
+  ]);
 
-   addFooter(doc);
+  autoTable(doc, {
+    startY: startY + 38,
+    head: [['#', 'Farmer Name', 'ID', 'Entries', 'Total (L)', 'Amount']],
+    body: tableData,
+    foot: [
+      [
+        '',
+        'GRAND TOTAL',
+        '',
+        data.totalEntries.toString(),
+        data.totalLitres.toFixed(2),
+        formatCurrency(data.totalAmount),
+      ],
+    ],
+    theme: 'striped',
+    headStyles: {
+      fillColor: [76, 175, 80],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 8,
+    },
+    footStyles: {
+      fillColor: [240, 240, 240],
+      textColor: 0,
+      fontStyle: 'bold',
+      fontSize: 8,
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 2,
+      overflow: 'linebreak',
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { cellWidth: 45 },
+      2: { halign: 'center', cellWidth: 28 },
+      3: { halign: 'center', cellWidth: 18 },
+      4: { halign: 'right', cellWidth: 25 },
+      5: { halign: 'right', cellWidth: 35 },
+    },
+    tableWidth: 'auto',
+    margin: { left: 14, right: 14 },
+  });
 
-   return doc;
- }
+  addFooter(doc);
+
+  return doc;
+}
