@@ -49,6 +49,7 @@ export default function MilkEntryAdd() {
       await createMilkEntry.mutateAsync({
         farmer_id: values.farmer_id,
         entry_date: today,
+        session: values.session,
         quantity_liters: values.quantity_liters,
         fat_percentage: values.fat_percentage,
         snf_percentage: values.snf_percentage,
