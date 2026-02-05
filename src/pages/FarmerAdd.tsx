@@ -151,14 +151,13 @@ export default function FarmerAdd() {
         onConfirm={confirmNavigation}
       />
 
-      {/* Center Assignment Dialog for new staff */}
+      {/* Create Center Dialog for new staff */}
       {user && (
-        <CenterAssignmentDialog
+        <CreateCenterDialog
           open={showCenterAssignment}
           onOpenChange={setShowCenterAssignment}
-          centers={centers}
           userId={user.id}
-          onAssigned={handleCenterAssigned}
+          onCreated={handleCenterAssigned}
         />
       )}
     </AppLayout>
