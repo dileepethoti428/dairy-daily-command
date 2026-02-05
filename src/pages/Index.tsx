@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorDisplay, getReadableErrorMessage } from '@/components/ui/error-display';
 import { PendingFarmersWidget } from '@/components/dashboard/PendingFarmersWidget';
@@ -214,21 +215,25 @@ export default function Index() {
                 className="py-4"
               />
             ) : (
-              recentFarmers.map((farmer) => (
-                <button
-                  key={farmer.id}
-                  className="flex w-full items-center justify-between rounded-lg bg-secondary p-3 text-left transition-colors hover:bg-secondary/80 tap-target"
-                  onClick={() => navigate(`/farmers/${farmer.id}`)}
-                >
-                  <div>
-                    <p className="font-medium text-foreground">{farmer.full_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {farmer.farmer_code} • {farmer.village || 'N/A'}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              ))
+              <ScrollArea className="max-h-[200px]">
+                <div className="space-y-2 pr-3">
+                  {recentFarmers.map((farmer) => (
+                    <button
+                      key={farmer.id}
+                      className="flex w-full items-center justify-between rounded-lg bg-secondary p-3 text-left transition-colors hover:bg-secondary/80 tap-target"
+                      onClick={() => navigate(`/farmers/${farmer.id}`)}
+                    >
+                      <div>
+                        <p className="font-medium text-foreground">{farmer.full_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {farmer.farmer_code} • {farmer.village || 'N/A'}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
