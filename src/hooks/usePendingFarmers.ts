@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { getCurrentSession } from '@/lib/sessionUtils';
 import type { MilkSession } from './useMilkEntries';
 
 export interface PendingFarmer {
@@ -12,8 +13,7 @@ export interface PendingFarmer {
 
 export function usePendingFarmers(centerId?: string) {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const currentHour = new Date().getHours();
-  const currentSession: MilkSession = currentHour < 12 ? 'morning' : 'evening';
+  const currentSession = getCurrentSession();
 
   return useQuery({
     queryKey: ['pending-farmers', today, currentSession, centerId],
@@ -63,8 +63,7 @@ export function usePendingFarmers(centerId?: string) {
 
 export function useFarmerAttendanceStats(centerId?: string) {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const currentHour = new Date().getHours();
-  const currentSession: MilkSession = currentHour < 12 ? 'morning' : 'evening';
+  const currentSession = getCurrentSession();
 
   return useQuery({
     queryKey: ['farmer-attendance-stats', today, currentSession, centerId],
