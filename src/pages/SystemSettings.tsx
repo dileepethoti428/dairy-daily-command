@@ -10,11 +10,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { useSystemSettings, useUpdateBusinessInfo, BusinessInfo } from '@/hooks/useSystemSettings';
 import { useAuth } from '@/contexts/AuthContext';
+import { PricingSlabCard } from '@/components/settings/PricingSlabCard';
 import {
-  Settings as SettingsIcon,
   Building2,
   Cog,
-  DollarSign,
   AlertCircle,
   Loader2,
   Lock,
