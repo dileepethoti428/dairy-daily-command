@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { useBlocker, useLocation } from 'react-router-dom';
 
 interface UseUnsavedChangesOptions {
   isDirty: boolean;
@@ -8,12 +8,24 @@ interface UseUnsavedChangesOptions {
 
 export function useUnsavedChanges({ isDirty, message }: UseUnsavedChangesOptions) {
   const [showPrompt, setShowPrompt] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+  const location = useLocation();
+
+  // Try to use the blocker API if available (data routers only)
+  // This is a safe wrapper that won't crash with legacy BrowserRouter
+  let blocker: { state: string; proceed?: () => void; reset?: () => void } = { state: 'unblocked' };
   
-  // Block navigation when there are unsaved changes
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isDirty && currentLocation.pathname !== nextLocation.pathname
-  );
+  try {
+    // useBlocker only works with data routers created via createBrowserRouter
+    // With legacy BrowserRouter, this will throw an error
+    blocker = useBlocker(
+      ({ currentLocation, nextLocation }) =>
+        isDirty && currentLocation.pathname !== nextLocation.pathname
+    );
+  } catch {
+    // Fallback: useBlocker is not available with legacy BrowserRouter
+    // We'll rely only on beforeunload for browser navigation protection
+  }
 
   // Handle browser beforeunload
   useEffect(() => {
@@ -37,23 +49,39 @@ export function useUnsavedChanges({ isDirty, message }: UseUnsavedChangesOptions
   }, [blocker.state]);
 
   const confirmNavigation = useCallback(() => {
-    if (blocker.state === 'blocked') {
+    if (blocker.state === 'blocked' && blocker.proceed) {
       blocker.proceed();
     }
+    if (pendingNavigation) {
+      pendingNavigation();
+      setPendingNavigation(null);
+    }
+    setShowPrompt(false);
+  }, [blocker, pendingNavigation]);
+
+  const cancelNavigation = useCallback(() => {
+    if (blocker.state === 'blocked' && blocker.reset) {
+      blocker.reset();
+    }
+    setPendingNavigation(null);
     setShowPrompt(false);
   }, [blocker]);
 
-  const cancelNavigation = useCallback(() => {
-    if (blocker.state === 'blocked') {
-      blocker.reset();
+  // Helper to wrap navigation calls with unsaved changes check
+  const checkBeforeNavigate = useCallback((navigate: () => void) => {
+    if (isDirty) {
+      setPendingNavigation(() => navigate);
+      setShowPrompt(true);
+      return false;
     }
-    setShowPrompt(false);
-  }, [blocker]);
+    return true;
+  }, [isDirty]);
 
   return {
     showPrompt,
     confirmNavigation,
     cancelNavigation,
     isBlocked: blocker.state === 'blocked',
+    checkBeforeNavigate,
   };
 }
