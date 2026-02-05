@@ -192,6 +192,7 @@ export function useCreateMilkEntry() {
         .insert({
           farmer_id: entry.farmer_id,
           entry_date: entry.entry_date,
+          session: entry.session,
           quantity_liters: entry.quantity_liters,
           fat_percentage: entry.fat_percentage,
           snf_percentage: entry.snf_percentage,
