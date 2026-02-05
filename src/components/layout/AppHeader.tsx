@@ -90,13 +90,7 @@ export function AppHeader() {
             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="max-w-[120px] truncate">{selectedCenter.name}</span>
           </div>
-        ) : (
-          // No center assigned
-          <div className="flex h-9 items-center gap-2 rounded-md bg-muted px-3 text-sm text-muted-foreground">
-            <Building2 className="h-3.5 w-3.5" />
-            <span>No Center</span>
-          </div>
-        )}
+        ) : null}
 
         {/* Profile Menu */}
         <DropdownMenu>
