@@ -157,8 +157,8 @@ export default function MilkEntryAdd() {
           <AlertDialogHeader>
             <AlertDialogTitle>Entry Already Exists</AlertDialogTitle>
             <AlertDialogDescription>
-              An entry for this farmer has already been recorded today. Each farmer
-              can only have one milk entry per day.
+              An entry for this farmer has already been recorded for this session today. 
+              Each farmer can have one morning and one evening entry per day.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
