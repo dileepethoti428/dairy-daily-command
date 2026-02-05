@@ -18,7 +18,6 @@ import {
   AlertCircle,
   Loader2,
   Lock,
-  Info,
 } from 'lucide-react';
 
 export default function SystemSettings() {
@@ -209,12 +208,14 @@ export default function SystemSettings() {
         </Card>
 
         {/* Pricing Configuration (Coming Soon) */}
-        <Card className="border-dashed shadow-dairy">
+        <Card className="shadow-dairy">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg text-muted-foreground">
-              <DollarSign className="h-5 w-5" />
-              Pricing Configuration
-              <Badge variant="outline" className="ml-2">Coming Soon</Badge>
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-primary" />
+                Pricing Configuration
+              </div>
+              <Badge variant="outline">Coming Soon</Badge>
             </CardTitle>
             <CardDescription>
               Configure rate slabs based on FAT/SNF content
@@ -222,7 +223,7 @@ export default function SystemSettings() {
           </CardHeader>
           <CardContent>
             <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
-              <Info className="mt-0.5 h-5 w-5 text-muted-foreground" />
+              <span className="mt-0.5 text-muted-foreground">◦</span>
               <div>
                 <p className="text-sm font-medium">Feature in Development</p>
                 <p className="text-xs text-muted-foreground">
