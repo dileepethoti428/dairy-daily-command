@@ -1,4 +1,4 @@
-import { format, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,21 +9,16 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorDisplay, getReadableErrorMessage } from '@/components/ui/error-display';
 import { useFarmers } from '@/hooks/useFarmers';
 import { useTodayStats } from '@/hooks/useMilkEntries';
-import { useCurrentOpenSettlement } from '@/hooks/useSettlements';
 import { useCenter } from '@/contexts/CenterContext';
-import { useAuth } from '@/contexts/AuthContext';
 import {
   Plus,
   List,
   Droplets,
   Users,
   Beaker,
-  AlertCircle,
   FileText,
   Calendar,
   ChevronRight,
-  Lock,
-  Building2,
   Milk,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -32,7 +27,6 @@ export default function Index() {
   const navigate = useNavigate();
   const today = new Date();
   const { selectedCenter, isLoading: centerLoading } = useCenter();
-  const { isAdmin } = useAuth();
   
   // Fetch recent farmers from Supabase scoped to selected center
   const { data: farmers, isLoading: farmersLoading, error: farmersError, refetch: refetchFarmers } = useFarmers(selectedCenter?.id);
@@ -42,15 +36,7 @@ export default function Index() {
   // Fetch today's stats from milk entries scoped to selected center
   const { data: todayStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTodayStats(selectedCenter?.id);
   
-  // Fetch current open settlement scoped to selected center
-  const { data: openSettlement, isLoading: settlementLoading } = useCurrentOpenSettlement(selectedCenter?.id);
-  
   const isCollectionOpen = currentHour >= 5 && currentHour < 20; // 5 AM to 8 PM
-  
-  // Calculate days until settlement ends
-  const daysUntilSettlementEnds = openSettlement 
-    ? differenceInDays(new Date(openSettlement.end_date), today)
-    : null;
   
   const hasNoEntriesToday = !statsLoading && (todayStats?.totalFarmers === 0);
   const hasNoFarmers = !farmersLoading && (!farmers || farmers.length === 0);
@@ -243,53 +229,6 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        {/* Settlement Alert */}
-        {settlementLoading ? (
-          <Skeleton className="h-20 rounded-lg" />
-        ) : openSettlement ? (
-          <Card className={cn(
-            "shadow-dairy",
-            daysUntilSettlementEnds !== null && daysUntilSettlementEnds <= 2 
-              ? "border-warning bg-warning/5" 
-              : ""
-          )}>
-            <CardContent className="flex items-center gap-3 p-4">
-              {daysUntilSettlementEnds !== null && daysUntilSettlementEnds <= 2 ? (
-                <AlertCircle className="h-5 w-5 text-warning" />
-              ) : (
-                <Calendar className="h-5 w-5 text-primary" />
-              )}
-              <div className="flex-1">
-                <p className="font-medium text-foreground">
-                  {daysUntilSettlementEnds !== null && daysUntilSettlementEnds <= 0
-                    ? 'Settlement period ended'
-                    : daysUntilSettlementEnds !== null && daysUntilSettlementEnds <= 2
-                    ? `Settlement ends in ${daysUntilSettlementEnds} day${daysUntilSettlementEnds === 1 ? '' : 's'}`
-                    : 'Current Settlement'}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(openSettlement.start_date), 'MMM d')} -{' '}
-                  {format(new Date(openSettlement.end_date), 'MMM d')}
-                </p>
-              </div>
-              <Button
-                variant={daysUntilSettlementEnds !== null && daysUntilSettlementEnds <= 2 ? "default" : "outline"}
-                size="sm"
-                onClick={() => navigate(`/settlements/${openSettlement.id}`)}
-              >
-                {daysUntilSettlementEnds !== null && daysUntilSettlementEnds <= 0 ? (
-                  <>
-                    <Lock className="mr-1 h-3 w-3" />
-                    Lock
-                  </>
-                ) : (
-                  'View'
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        ) : null}
-
         {/* Quick Reports */}
         <Card className="shadow-dairy">
           <CardHeader className="pb-2">
@@ -311,10 +250,10 @@ export default function Index() {
               <Button 
                 variant="outline" 
                 className="h-12 justify-start"
-                onClick={() => navigate('/settlements')}
+                onClick={() => navigate('/reports')}
               >
                 <Calendar className="mr-2 h-4 w-4" />
-                Settlements
+                Reports
               </Button>
             </div>
           </CardContent>

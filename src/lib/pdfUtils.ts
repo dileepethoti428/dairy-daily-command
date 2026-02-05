@@ -409,3 +409,106 @@ export function previewPDF(doc: jsPDF) {
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank');
 }
+
+ // Collection Report PDF (new)
+ export interface CollectionReportPDFData {
+   centerName: string;
+   startDate: string;
+   endDate: string;
+   periodLabel: string;
+   totalLitres: number;
+   totalAmount: number;
+   totalFarmers: number;
+   totalEntries: number;
+   avgFat: number;
+   avgSnf: number;
+   avgRate: number;
+   farmers: {
+     farmerName: string;
+     farmerId: string;
+     totalLitres: number;
+     totalAmount: number;
+     entriesCount: number;
+   }[];
+ }
+
+ export function generateCollectionReportPDF(data: CollectionReportPDFData): jsPDF {
+   const doc = new jsPDF();
+
+   const startY = addHeader(doc, {
+     appName: 'Milk Procurement System',
+     collectionCenter: data.centerName,
+     reportType: `Collection Report (${data.periodLabel})`,
+   });
+
+   // Period
+   doc.setFontSize(11);
+   doc.setFont('helvetica', 'bold');
+   doc.text(
+     `Period: ${format(new Date(data.startDate), 'dd MMM yyyy')} - ${format(new Date(data.endDate), 'dd MMM yyyy')}`,
+     14,
+     startY + 5
+   );
+
+   // Summary stats
+   doc.setFont('helvetica', 'normal');
+   doc.text(`Total Milk Collected: ${data.totalLitres.toFixed(2)} Litres`, 14, startY + 14);
+   doc.text(`Total Amount: ${formatCurrency(data.totalAmount)}`, 14, startY + 21);
+   doc.text(`Total Farmers: ${data.totalFarmers}`, 14, startY + 28);
+   doc.text(`Total Entries: ${data.totalEntries}`, 100, startY + 14);
+   doc.text(`Avg Fat: ${data.avgFat}%`, 100, startY + 21);
+   doc.text(`Avg SNF: ${data.avgSnf}%`, 100, startY + 28);
+
+   // Farmer breakdown table
+   const tableData = data.farmers.map((farmer, index) => [
+     (index + 1).toString(),
+     farmer.farmerName,
+     farmer.farmerId || '-',
+     farmer.entriesCount.toString(),
+     farmer.totalLitres.toFixed(2),
+     formatCurrency(farmer.totalAmount),
+   ]);
+
+   autoTable(doc, {
+     startY: startY + 38,
+     head: [['#', 'Farmer Name', 'ID', 'Entries', 'Total (L)', 'Amount']],
+     body: tableData,
+     foot: [
+       [
+         '',
+         'GRAND TOTAL',
+         '',
+         data.totalEntries.toString(),
+         data.totalLitres.toFixed(2),
+         formatCurrency(data.totalAmount),
+       ],
+     ],
+     theme: 'striped',
+     headStyles: {
+       fillColor: [76, 175, 80],
+       textColor: 255,
+       fontStyle: 'bold',
+     },
+     footStyles: {
+       fillColor: [240, 240, 240],
+       textColor: 0,
+       fontStyle: 'bold',
+     },
+     styles: {
+       fontSize: 9,
+       cellPadding: 3,
+     },
+     columnStyles: {
+       0: { halign: 'center', cellWidth: 12 },
+       1: { cellWidth: 50 },
+       2: { halign: 'center', cellWidth: 25 },
+       3: { halign: 'center', cellWidth: 20 },
+       4: { halign: 'right', cellWidth: 28 },
+       5: { halign: 'right', cellWidth: 35 },
+     },
+   });
+
+   addFooter(doc);
+
+   return doc;
+ }
