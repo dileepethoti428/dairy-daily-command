@@ -330,7 +330,15 @@ export function MilkEntryForm({
 
           {/* Rate */}
           <div className="space-y-2">
-            <Label htmlFor="rate">Rate per Litre (₹)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="rate">Rate per Litre (₹)</Label>
+              {isAutoRate && (
+                <Badge variant="secondary" className="gap-1 text-xs">
+                  <Zap className="h-3 w-3" />
+                  Auto
+                </Badge>
+              )}
+            </div>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 ₹
@@ -344,14 +352,24 @@ export function MilkEntryForm({
                 placeholder="0.00"
                 className={cn(
                   'h-14 pl-8 text-lg',
-                  errors.rate_per_litre && 'border-destructive'
+                  errors.rate_per_litre && 'border-destructive',
+                  isAutoRate && 'border-primary/50 bg-primary/5'
                 )}
                 {...register('rate_per_litre', { valueAsNumber: true })}
+                onChange={(e) => {
+                  register('rate_per_litre', { valueAsNumber: true }).onChange(e);
+                  handleRateChange();
+                }}
               />
             </div>
             {errors.rate_per_litre && (
               <p className="text-sm text-destructive">
                 {errors.rate_per_litre.message}
+              </p>
+            )}
+            {!pricingSlabs?.length && (
+              <p className="text-xs text-muted-foreground">
+                No pricing slabs configured. Enter rate manually.
               </p>
             )}
           </div>
