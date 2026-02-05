@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,9 +24,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, User, Phone, MapPin, Milk, Building2, AlertTriangle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { User, Phone, MapPin, Milk, Building2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 const farmerSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -60,10 +60,6 @@ export function FarmerForm({
   centers,
   onDirtyChange,
 }: FarmerFormProps) {
-  const { isAdmin } = useAuth();
-  const canEditBank = isAdmin || !isEdit;
-  const canToggleStatus = isAdmin;
-
   const [showBankWarning, setShowBankWarning] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] = useState<FarmerFormData | null>(null);
 
@@ -113,8 +109,8 @@ export function FarmerForm({
   };
 
   const handleFormSubmit = (data: FarmerFormData) => {
-    // If bank details changed and user is admin, show warning
-    if (isEdit && isAdmin && hasBankChanges(data)) {
+    // If bank details changed, show warning
+    if (isEdit && hasBankChanges(data)) {
       setPendingSubmitData(data);
       setShowBankWarning(true);
       return;
@@ -246,97 +242,68 @@ export function FarmerForm({
             <CardTitle className="flex items-center gap-2 text-base">
               <Building2 className="h-4 w-4 text-primary" />
               Bank Details
-              {!canEditBank && (
-                <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
-                  <Lock className="h-3 w-3" />
-                  Admin Only
-                </span>
-              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {canEditBank ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="bank_account_holder_name">Account Holder Name</Label>
-                  <Input
-                    id="bank_account_holder_name"
-                    placeholder="Enter account holder name"
-                    {...register('bank_account_holder_name')}
-                  />
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="bank_account_holder_name">Account Holder Name</Label>
+              <Input
+                id="bank_account_holder_name"
+                placeholder="Enter account holder name"
+                {...register('bank_account_holder_name')}
+              />
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="bank_account_number">Account Number</Label>
-                  <Input
-                    id="bank_account_number"
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Enter account number"
-                    {...register('bank_account_number')}
-                  />
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="bank_account_number">Account Number</Label>
+              <Input
+                id="bank_account_number"
+                type="text"
+                inputMode="numeric"
+                placeholder="Enter account number"
+                {...register('bank_account_number')}
+              />
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="bank_ifsc">IFSC Code</Label>
-                  <Input
-                    id="bank_ifsc"
-                    placeholder="Enter IFSC code"
-                    {...register('bank_ifsc')}
-                    className="uppercase"
-                  />
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="bank_ifsc">IFSC Code</Label>
+              <Input
+                id="bank_ifsc"
+                placeholder="Enter IFSC code"
+                {...register('bank_ifsc')}
+                className="uppercase"
+              />
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="bank_name">Bank Name</Label>
-                  <Input
-                    id="bank_name"
-                    placeholder="Enter bank name"
-                    {...register('bank_name')}
-                  />
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Contact an administrator to edit bank details.
-              </p>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="bank_name">Bank Name</Label>
+              <Input
+                id="bank_name"
+                placeholder="Enter bank name"
+                {...register('bank_name')}
+              />
+            </div>
           </CardContent>
         </Card>
 
-        {/* Status Section - Only visible to admin in edit mode */}
-        {(canToggleStatus || !isEdit) && (
-          <Card className="shadow-dairy">
-            <CardContent className="flex items-center justify-between py-4">
-              <div>
-                <Label htmlFor="is_active" className="text-base font-medium">
-                  Farmer Status
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {isActive ? 'This farmer can receive milk entries' : 'This farmer is inactive'}
-                </p>
-              </div>
-              <Switch
-                id="is_active"
-                checked={isActive}
-                onCheckedChange={(checked) => setValue('is_active', checked)}
-                disabled={isEdit && !canToggleStatus}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Staff notice for status */}
-        {isEdit && !canToggleStatus && (
-          <Card className="shadow-dairy border-muted bg-muted/30">
-            <CardContent className="flex items-center gap-3 py-4">
-              <Lock className="h-4 w-4 text-muted-foreground" />
+        {/* Status Section */}
+        <Card className="shadow-dairy">
+          <CardContent className="flex items-center justify-between py-4">
+            <div>
+              <Label htmlFor="is_active" className="text-base font-medium">
+                Farmer Status
+              </Label>
               <p className="text-sm text-muted-foreground">
-                Only admins can activate/deactivate farmers
+                {isActive ? 'This farmer can receive milk entries' : 'This farmer is inactive'}
               </p>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+            <Switch
+              id="is_active"
+              checked={isActive}
+              onCheckedChange={(checked) => setValue('is_active', checked)}
+            />
+          </CardContent>
+        </Card>
 
         {/* Submit Button */}
         <Button

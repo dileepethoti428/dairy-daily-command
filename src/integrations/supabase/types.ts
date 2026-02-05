@@ -2389,6 +2389,7 @@ export type Database = {
           bank_name: string | null
           center_id: string
           created_at: string
+          created_by: string | null
           farmer_code: string
           full_name: string
           id: string
@@ -2406,6 +2407,7 @@ export type Database = {
           bank_name?: string | null
           center_id: string
           created_at?: string
+          created_by?: string | null
           farmer_code: string
           full_name: string
           id?: string
@@ -2423,6 +2425,7 @@ export type Database = {
           bank_name?: string | null
           center_id?: string
           created_at?: string
+          created_by?: string | null
           farmer_code?: string
           full_name?: string
           id?: string
