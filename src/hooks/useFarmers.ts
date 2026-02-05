@@ -137,17 +137,45 @@ export function useUpdateFarmer() {
 }
 
 export function useCollectionCenters() {
-  return useQuery({
-    queryKey: ['collection-centers'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('collection_centers')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
+  const { user, isAdmin } = useAuth();
 
-      if (error) throw error;
-      return data;
+  return useQuery({
+    queryKey: ['collection-centers', user?.id, isAdmin],
+    queryFn: async () => {
+      if (!user) return [];
+
+      if (isAdmin) {
+        // Admin: fetch all active centers
+        const { data, error } = await supabase
+          .from('collection_centers')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+
+        if (error) throw error;
+        return data;
+      } else {
+        // Staff: fetch only centers they are assigned to
+        const { data, error } = await supabase
+          .from('user_center_assignments')
+          .select(`
+            center_id,
+            collection_centers (*)
+          `)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+        
+        // Extract the collection centers from the assignments
+        const centers = data
+          ?.map(assignment => assignment.collection_centers)
+          .filter((center): center is NonNullable<typeof center> => 
+            center !== null && center.is_active
+          );
+        
+        return centers || [];
+      }
     },
+    enabled: !!user,
   });
 }
