@@ -7,12 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateCollectionCenter } from '@/hooks/useCollectionCenters';
-import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Building2, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2 } from 'lucide-react';
 
 export default function CenterAdd() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
   const createCenter = useCreateCollectionCenter();
   
   const [formData, setFormData] = useState({
@@ -22,26 +20,6 @@ export default function CenterAdd() {
     address: '',
     phone: '',
   });
-
-  // Redirect non-admin users
-  if (!isAdmin) {
-    return (
-      <AppLayout>
-        <div className="flex min-h-[50vh] items-center justify-center p-4">
-          <div className="text-center">
-            <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-            <h1 className="mt-4 text-xl font-semibold">Access Denied</h1>
-            <p className="mt-2 text-muted-foreground">
-              Only administrators can add collection centers.
-            </p>
-            <Button className="mt-4" onClick={() => navigate('/')}>
-              Go Home
-            </Button>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
