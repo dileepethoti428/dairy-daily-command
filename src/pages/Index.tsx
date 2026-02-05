@@ -11,6 +11,7 @@ import { PendingFarmersWidget } from '@/components/dashboard/PendingFarmersWidge
 import { useFarmers } from '@/hooks/useFarmers';
 import { useTodayStats } from '@/hooks/useMilkEntries';
 import { useCenter } from '@/contexts/CenterContext';
+import { getSessionInfo } from '@/lib/sessionUtils';
 import {
   Plus,
   List,
@@ -29,15 +30,15 @@ export default function Index() {
   const today = new Date();
   const { selectedCenter, isLoading: centerLoading } = useCenter();
   
+  // Get session info based on IST time
+  const { session, isActive: isCollectionOpen, label: sessionLabel } = getSessionInfo();
+  
   // Fetch recent farmers from Supabase scoped to selected center
   const { data: farmers, isLoading: farmersLoading, error: farmersError, refetch: refetchFarmers } = useFarmers(selectedCenter?.id);
   const recentFarmers = farmers?.slice(0, 5) || [];
-  const currentHour = today.getHours();
   
   // Fetch today's stats from milk entries scoped to selected center
   const { data: todayStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTodayStats(selectedCenter?.id);
-  
-  const isCollectionOpen = currentHour >= 5 && currentHour < 20; // 5 AM to 8 PM
   
   const hasNoEntriesToday = !statsLoading && (todayStats?.totalFarmers === 0);
   const hasNoFarmers = !farmersLoading && (!farmers || farmers.length === 0);
@@ -52,7 +53,7 @@ export default function Index() {
               {format(today, 'EEEE, MMMM d, yyyy')}
             </p>
             <p className="text-lg font-semibold text-foreground">
-              {currentHour < 12 ? 'Morning' : 'Evening'} Session
+              {sessionLabel}
             </p>
           </div>
           <Badge
