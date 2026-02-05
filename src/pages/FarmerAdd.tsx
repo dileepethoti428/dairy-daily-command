@@ -5,7 +5,7 @@ import { FarmerForm, FarmerFormData } from '@/components/farmers/FarmerForm';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UnsavedChangesDialog } from '@/components/ui/unsaved-changes-dialog';
-import { CenterAssignmentDialog } from '@/components/center/CenterAssignmentDialog';
+import { CreateCenterDialog } from '@/components/center/CreateCenterDialog';
 import { useCreateFarmer, useCollectionCenters } from '@/hooks/useFarmers';
 import { useCenter } from '@/contexts/CenterContext';
 import { useAuth } from '@/contexts/AuthContext';
