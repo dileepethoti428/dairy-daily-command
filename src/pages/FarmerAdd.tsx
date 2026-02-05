@@ -9,6 +9,7 @@ import { useCreateFarmer, useCollectionCenters } from '@/hooks/useFarmers';
 import { useCenter } from '@/contexts/CenterContext';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ArrowLeft, UserPlus } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 
 export default function FarmerAdd() {
   const [hasChanges, setHasChanges] = useState(false);
@@ -79,6 +80,13 @@ export default function FarmerAdd() {
             <p className="mt-1 text-sm text-muted-foreground">
               Please create a collection center first before adding farmers.
             </p>
+            <Button
+              className="mt-4"
+              onClick={() => navigate('/centers/add')}
+            >
+              <Building2 className="mr-2 h-4 w-4" />
+              Create Collection Center
+            </Button>
           </div>
         </div>
       </AppLayout>
