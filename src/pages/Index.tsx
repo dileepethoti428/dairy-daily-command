@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorDisplay, getReadableErrorMessage } from '@/components/ui/error-display';
+import { PendingFarmersWidget } from '@/components/dashboard/PendingFarmersWidget';
 import { useFarmers } from '@/hooks/useFarmers';
 import { useTodayStats } from '@/hooks/useMilkEntries';
 import { useCenter } from '@/contexts/CenterContext';
@@ -166,6 +167,9 @@ export default function Index() {
             )}
           </CardContent>
         </Card>
+
+        {/* Pending Farmers Widget */}
+        <PendingFarmersWidget centerId={selectedCenter?.id} />
 
         {/* Recent Farmers */}
         <Card className="shadow-dairy">
