@@ -32,6 +32,7 @@ export interface MilkEntry {
 export interface MilkEntryFormData {
   farmer_id: string;
   entry_date: string;
+  session: MilkSession;
   quantity_liters: number;
   fat_percentage: number;
   snf_percentage: number;
