@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { IndianRupee, AlertTriangle } from 'lucide-react';
+import { IndianRupee, AlertTriangle, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ValueWarning, checkMilkQualityWarnings } from '@/components/ui/value-warning';
 import { FarmerSelector } from './FarmerSelector';
 import { cn } from '@/lib/utils';
+import type { MilkSession } from '@/hooks/useMilkEntries';
 
 const milkEntrySchema = z.object({
   farmer_id: z.string().min(1, 'Please select a farmer'),
+  session: z.enum(['morning', 'evening']),
   quantity_liters: z
     .number({ invalid_type_error: 'Enter quantity' })
     .positive('Must be greater than 0')
