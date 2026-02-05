@@ -82,7 +82,41 @@ export default function FarmerAdd() {
     );
   }
 
+  // For staff without a center, show the create dialog instead of "No Centers" message
   if (!centers || centers.length === 0) {
+    // If admin, show the message to create centers from admin panel
+    if (isAdmin) {
+      return (
+        <AppLayout>
+          <div className="mx-auto max-w-lg p-4">
+            <Button
+              variant="ghost"
+              className="mb-4 -ml-2"
+              onClick={() => navigate('/farmers')}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <div className="rounded-lg bg-warning/10 p-6 text-center">
+              <p className="font-medium text-foreground">No Collection Centers</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Please create a collection center first before adding farmers.
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() => navigate('/centers/add')}
+              >
+                <Building2 className="mr-2 h-4 w-4" />
+                Create Collection Center
+              </Button>
+            </div>
+          </div>
+        </AppLayout>
+      );
+    }
+    
+    // For staff without a center, the CreateCenterDialog will show via useEffect
+    // Show loading/waiting state
     return (
       <AppLayout>
         <div className="mx-auto max-w-lg p-4">
@@ -94,19 +128,23 @@ export default function FarmerAdd() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <div className="rounded-lg bg-warning/10 p-6 text-center">
-            <p className="font-medium text-foreground">No Collection Centers</p>
+          <div className="rounded-lg bg-secondary p-6 text-center">
+            <Building2 className="mx-auto h-12 w-12 text-primary mb-3" />
+            <p className="font-medium text-foreground">Create Your Collection Center</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Please create a collection center first before adding farmers.
+              You need to create your collection center before adding farmers.
             </p>
-            <Button
-              className="mt-4"
-              onClick={() => navigate('/centers/add')}
-            >
-              <Building2 className="mr-2 h-4 w-4" />
-              Create Collection Center
-            </Button>
           </div>
+          
+          {/* Create Center Dialog for new staff */}
+          {user && (
+            <CreateCenterDialog
+              open={showCenterAssignment}
+              onOpenChange={setShowCenterAssignment}
+              userId={user.id}
+              onCreated={handleCenterAssigned}
+            />
+          )}
         </div>
       </AppLayout>
     );
