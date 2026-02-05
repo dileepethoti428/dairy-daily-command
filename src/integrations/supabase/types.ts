@@ -4093,6 +4093,42 @@ export type Database = {
           },
         ]
       }
+      pricing_slabs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          max_fat: number
+          max_snf: number | null
+          min_fat: number
+          min_snf: number | null
+          rate_per_litre: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_fat: number
+          max_snf?: number | null
+          min_fat: number
+          min_snf?: number | null
+          rate_per_litre: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_fat?: number
+          max_snf?: number | null
+          min_fat?: number
+          min_snf?: number | null
+          rate_per_litre?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_ratings: {
         Row: {
           created_at: string | null

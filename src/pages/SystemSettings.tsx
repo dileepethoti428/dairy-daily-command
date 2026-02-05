@@ -10,11 +10,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { useSystemSettings, useUpdateBusinessInfo, BusinessInfo } from '@/hooks/useSystemSettings';
 import { useAuth } from '@/contexts/AuthContext';
+import { PricingSlabCard } from '@/components/settings/PricingSlabCard';
 import {
-  Settings as SettingsIcon,
   Building2,
   Cog,
-  DollarSign,
   AlertCircle,
   Loader2,
   Lock,
@@ -207,33 +206,8 @@ export default function SystemSettings() {
           </CardContent>
         </Card>
 
-        {/* Pricing Configuration (Coming Soon) */}
-        <Card className="shadow-dairy">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between text-lg">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                Pricing Configuration
-              </div>
-              <Badge variant="outline">Coming Soon</Badge>
-            </CardTitle>
-            <CardDescription>
-              Configure rate slabs based on FAT/SNF content
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
-              <span className="mt-0.5 text-muted-foreground">◦</span>
-              <div>
-                <p className="text-sm font-medium">Feature in Development</p>
-                <p className="text-xs text-muted-foreground">
-                  Automatic rate calculation based on milk quality parameters will be
-                  available in a future update.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Pricing Configuration */}
+        <PricingSlabCard />
 
         <Separator />
 
