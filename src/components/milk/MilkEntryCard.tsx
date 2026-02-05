@@ -1,5 +1,6 @@
-import { ChevronRight, Droplets, Beaker } from 'lucide-react';
+import { ChevronRight, Droplets, Beaker, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { MilkSession } from '@/hooks/useMilkEntries';
 
 interface MilkEntryCardProps {
   farmerName: string;
@@ -8,6 +9,7 @@ interface MilkEntryCardProps {
   fat: number;
   snf: number;
   amount: number | null;
+  session?: MilkSession;
   onClick?: () => void;
   className?: string;
 }
@@ -19,6 +21,7 @@ export function MilkEntryCard({
   fat,
   snf,
   amount,
+  session,
   onClick,
   className,
 }: MilkEntryCardProps) {
@@ -36,6 +39,17 @@ export function MilkEntryCard({
           <span className="text-xs text-muted-foreground shrink-0">
             {farmerCode}
           </span>
+          {session && (
+            <span className={cn(
+              'flex items-center gap-1 text-xs px-1.5 py-0.5 rounded',
+              session === 'morning' 
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' 
+                : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+            )}>
+              {session === 'morning' ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
+              {session === 'morning' ? 'AM' : 'PM'}
+            </span>
+          )}
         </div>
         <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">

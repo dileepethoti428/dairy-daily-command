@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { IndianRupee, AlertTriangle } from 'lucide-react';
+import { IndianRupee, AlertTriangle, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ValueWarning, checkMilkQualityWarnings } from '@/components/ui/value-warning';
 import { FarmerSelector } from './FarmerSelector';
 import { cn } from '@/lib/utils';
+import type { MilkSession } from '@/hooks/useMilkEntries';
 
 const milkEntrySchema = z.object({
   farmer_id: z.string().min(1, 'Please select a farmer'),
+  session: z.enum(['morning', 'evening']),
   quantity_liters: z
     .number({ invalid_type_error: 'Enter quantity' })
     .positive('Must be greater than 0')
@@ -68,6 +70,7 @@ export function MilkEntryForm({
     resolver: zodResolver(milkEntrySchema),
     defaultValues: {
       farmer_id: initialValues?.farmer_id || '',
+      session: initialValues?.session || 'morning',
       quantity_liters: initialValues?.quantity_liters,
       fat_percentage: initialValues?.fat_percentage,
       snf_percentage: initialValues?.snf_percentage,
@@ -81,6 +84,7 @@ export function MilkEntryForm({
   const farmerId = watch('farmer_id');
   const fatPercentage = watch('fat_percentage');
   const snfPercentage = watch('snf_percentage');
+  const session = watch('session');
 
   const totalAmount =
     quantity && rate ? Math.round(quantity * rate * 100) / 100 : 0;
@@ -110,14 +114,45 @@ export function MilkEntryForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      {/* Date Display */}
+      {/* Date & Session Display */}
       <Card className="shadow-dairy">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <Label className="text-muted-foreground">Entry Date</Label>
             <span className="text-lg font-medium">
               {format(date ? new Date(date) : new Date(), 'dd MMM yyyy')}
             </span>
+          </div>
+          
+          {/* Session Toggle */}
+          <div className="space-y-2">
+            <Label>Session</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={session === 'morning' ? 'default' : 'outline'}
+                className={cn(
+                  'h-12 flex items-center justify-center gap-2',
+                  session === 'morning' && 'bg-amber-500 hover:bg-amber-600'
+                )}
+                onClick={() => setValue('session', 'morning', { shouldValidate: true })}
+              >
+                <Sun className="h-5 w-5" />
+                Morning
+              </Button>
+              <Button
+                type="button"
+                variant={session === 'evening' ? 'default' : 'outline'}
+                className={cn(
+                  'h-12 flex items-center justify-center gap-2',
+                  session === 'evening' && 'bg-indigo-500 hover:bg-indigo-600'
+                )}
+                onClick={() => setValue('session', 'evening', { shouldValidate: true })}
+              >
+                <Moon className="h-5 w-5" />
+                Evening
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

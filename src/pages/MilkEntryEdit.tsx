@@ -191,6 +191,7 @@ export default function MilkEntryEdit() {
         <MilkEntryForm
           initialValues={{
             farmer_id: entry.farmer_id,
+            session: (entry as any).session || 'morning',
             quantity_liters: entry.quantity_liters,
             fat_percentage: entry.fat_percentage,
             snf_percentage: entry.snf_percentage,

@@ -49,6 +49,7 @@ export default function MilkEntryAdd() {
       await createMilkEntry.mutateAsync({
         farmer_id: values.farmer_id,
         entry_date: today,
+        session: values.session,
         quantity_liters: values.quantity_liters,
         fat_percentage: values.fat_percentage,
         snf_percentage: values.snf_percentage,
@@ -156,8 +157,8 @@ export default function MilkEntryAdd() {
           <AlertDialogHeader>
             <AlertDialogTitle>Entry Already Exists</AlertDialogTitle>
             <AlertDialogDescription>
-              An entry for this farmer has already been recorded today. Each farmer
-              can only have one milk entry per day.
+              An entry for this farmer has already been recorded for this session today. 
+              Each farmer can have one morning and one evening entry per day.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
