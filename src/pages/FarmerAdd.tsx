@@ -1,27 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { FarmerForm, FarmerFormData } from '@/components/farmers/FarmerForm';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UnsavedChangesDialog } from '@/components/ui/unsaved-changes-dialog';
+import { CenterAssignmentDialog } from '@/components/center/CenterAssignmentDialog';
 import { useCreateFarmer, useCollectionCenters } from '@/hooks/useFarmers';
 import { useCenter } from '@/contexts/CenterContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 import { Building2 } from 'lucide-react';
 
 export default function FarmerAdd() {
   const [hasChanges, setHasChanges] = useState(false);
+  const [showCenterAssignment, setShowCenterAssignment] = useState(false);
   const navigate = useNavigate();
   const createFarmer = useCreateFarmer();
-  const { selectedCenter } = useCenter();
+  const { selectedCenter, userAssignedCenter, isLoading: centerLoading } = useCenter();
   const { data: centers, isLoading: centersLoading } = useCollectionCenters();
+  const { user, isAdmin } = useAuth();
 
   // Block navigation when form has unsaved changes
   const { showPrompt, confirmNavigation, cancelNavigation } = useUnsavedChanges({ 
     isDirty: hasChanges 
   });
+
+  // Check if staff needs to be assigned to a center
+  useEffect(() => {
+    if (!centersLoading && !centerLoading && centers && centers.length > 0) {
+      // Only staff users without an assigned center need to select one
+      if (!isAdmin && !userAssignedCenter && user) {
+        setShowCenterAssignment(true);
+      }
+    }
+  }, [centersLoading, centerLoading, centers, isAdmin, userAssignedCenter, user]);
 
   const handleSubmit = (data: FarmerFormData) => {
     setHasChanges(false); // Clear changes before submitting
@@ -50,7 +64,12 @@ export default function FarmerAdd() {
     setHasChanges(isDirty);
   };
 
-  if (centersLoading) {
+  const handleCenterAssigned = () => {
+    // Reload the page to refresh context with new assignment
+    window.location.reload();
+  };
+
+  if (centersLoading || centerLoading) {
     return (
       <AppLayout>
         <div className="mx-auto max-w-lg space-y-4 p-4">
@@ -93,6 +112,9 @@ export default function FarmerAdd() {
     );
   }
 
+  // Determine default center for the form
+  const defaultCenterId = userAssignedCenter?.id || selectedCenter?.id || centers[0]?.id;
+
   return (
     <AppLayout>
       <div className="mx-auto max-w-lg p-4 pb-8">
@@ -117,7 +139,7 @@ export default function FarmerAdd() {
           onSubmit={handleSubmit}
           isLoading={createFarmer.isPending}
           centers={centers}
-          defaultValues={selectedCenter ? { center_id: selectedCenter.id } : undefined}
+          defaultValues={defaultCenterId ? { center_id: defaultCenterId } : undefined}
           onDirtyChange={handleDirtyChange}
         />
       </div>
@@ -128,6 +150,17 @@ export default function FarmerAdd() {
         onCancel={cancelNavigation}
         onConfirm={confirmNavigation}
       />
+
+      {/* Center Assignment Dialog for new staff */}
+      {user && (
+        <CenterAssignmentDialog
+          open={showCenterAssignment}
+          onOpenChange={setShowCenterAssignment}
+          centers={centers}
+          userId={user.id}
+          onAssigned={handleCenterAssigned}
+        />
+      )}
     </AppLayout>
   );
 }

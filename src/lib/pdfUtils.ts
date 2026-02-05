@@ -122,7 +122,7 @@ function formatCurrency(amount: number): string {
 export function generateDailyCollectionPDF(data: DailyCollectionData): jsPDF {
   const doc = new jsPDF();
   
-  // Don't show "All Centers" - show empty or use specific center name only
+  // Always show center name if available (not "All Centers")
   const centerDisplay = data.centerName && data.centerName !== 'All Centers' 
     ? data.centerName 
     : '';
@@ -446,7 +446,7 @@ export interface CollectionReportPDFData {
 export function generateCollectionReportPDF(data: CollectionReportPDFData): jsPDF {
   const doc = new jsPDF();
 
-  // Don't show "All Centers" - show empty or use specific center name only
+  // Always show center name if available
   const centerDisplay = data.centerName && data.centerName !== 'All Centers' && data.centerName !== 'Collection Center'
     ? data.centerName
     : '';
