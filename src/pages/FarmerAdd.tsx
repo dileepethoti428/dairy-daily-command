@@ -27,15 +27,15 @@ export default function FarmerAdd() {
     isDirty: hasChanges 
   });
 
-  // Check if staff needs to be assigned to a center
+  // Check if staff needs to create/be assigned to a center
   useEffect(() => {
-    if (!centersLoading && !centerLoading && centers && centers.length > 0) {
-      // Only staff users without an assigned center need to select one
-      if (!isAdmin && !userAssignedCenter && user) {
+    if (!centersLoading && !centerLoading && user) {
+      // Staff users without an assigned center need to create one
+      if (!isAdmin && !userAssignedCenter) {
         setShowCenterAssignment(true);
       }
     }
-  }, [centersLoading, centerLoading, centers, isAdmin, userAssignedCenter, user]);
+  }, [centersLoading, centerLoading, isAdmin, userAssignedCenter, user]);
 
   const handleSubmit = (data: FarmerFormData) => {
     setHasChanges(false); // Clear changes before submitting
