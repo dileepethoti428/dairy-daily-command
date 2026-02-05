@@ -157,7 +157,7 @@ export default function TodayEntries() {
               variant="muted"
             />
           ) : (
-            <div className="space-y-2">
+          <div className="space-y-2">
               {entries?.map((entry) => (
                 <MilkEntryCard
                   key={entry.id}
@@ -167,6 +167,7 @@ export default function TodayEntries() {
                   fat={entry.fat_percentage}
                   snf={entry.snf_percentage}
                   amount={entry.total_amount}
+                  session={entry.session}
                   onClick={() => navigate(`/milk/${entry.id}`)}
                 />
               ))}
