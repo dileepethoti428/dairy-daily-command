@@ -92,49 +92,51 @@ export function PendingFarmersWidget({ centerId }: PendingFarmersWidgetProps) {
             className="py-4"
           />
         ) : (
-          <>
-            {displayedFarmers.map((farmer) => (
-              <div
-                key={farmer.id}
-                className="flex items-center justify-between rounded-lg bg-secondary p-3"
-              >
-                <button
-                  className="flex-1 text-left tap-target"
-                  onClick={() => navigate(`/farmers/${farmer.id}`)}
+          <ScrollArea className="max-h-[240px]">
+            <div className="space-y-2 pr-3">
+              {displayedFarmers.map((farmer) => (
+                <div
+                  key={farmer.id}
+                  className="flex items-center justify-between rounded-lg bg-secondary p-3"
                 >
-                  <p className="font-medium text-foreground">{farmer.full_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {farmer.farmer_code || 'No code'}
-                  </p>
-                </button>
-                
-                {farmer.phone ? (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="ml-2 gap-1.5 bg-success hover:bg-success/90"
-                    onClick={(e) => handleCall(farmer.phone!, e)}
+                  <button
+                    className="flex-1 text-left tap-target"
+                    onClick={() => navigate(`/farmers/${farmer.id}`)}
                   >
-                    <Phone className="h-4 w-4" />
-                    Call
-                  </Button>
-                ) : (
-                  <span className="text-xs text-muted-foreground">No phone</span>
-                )}
-              </div>
-            ))}
-            
-            {remainingCount > 0 && (
-              <Button
-                variant="ghost"
-                className="w-full text-primary"
-                onClick={() => navigate('/farmers?filter=pending')}
-              >
-                View {remainingCount} more pending
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            )}
-          </>
+                    <p className="font-medium text-foreground">{farmer.full_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {farmer.farmer_code || 'No code'}
+                    </p>
+                  </button>
+                  
+                  {farmer.phone ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="ml-2 gap-1.5 bg-success hover:bg-success/90"
+                      onClick={(e) => handleCall(farmer.phone!, e)}
+                    >
+                      <Phone className="h-4 w-4" />
+                      Call
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No phone</span>
+                  )}
+                </div>
+              ))}
+              
+              {remainingCount > 0 && (
+                <Button
+                  variant="ghost"
+                  className="w-full text-primary"
+                  onClick={() => navigate('/farmers?filter=pending')}
+                >
+                  View {remainingCount} more pending
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </ScrollArea>
         )}
       </CardContent>
     </Card>
