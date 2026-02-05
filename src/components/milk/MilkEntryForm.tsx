@@ -61,6 +61,9 @@ export function MilkEntryForm({
   const fatInputRef = useRef<HTMLInputElement>(null);
   const snfInputRef = useRef<HTMLInputElement>(null);
   const rateInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isAutoRate, setIsAutoRate] = useState(false);
+  const { data: pricingSlabs } = usePricingSlabs();
 
   const {
     register,
@@ -87,6 +90,42 @@ export function MilkEntryForm({
   const fatPercentage = watch('fat_percentage');
   const snfPercentage = watch('snf_percentage');
   const session = watch('session');
+
+  // Find matching pricing slab based on FAT/SNF
+  const findMatchingRate = useCallback((fat: number, snf: number | undefined): number | null => {
+    if (!pricingSlabs || pricingSlabs.length === 0) return null;
+    
+    const activeSlabs = pricingSlabs.filter(s => s.is_active);
+    
+    for (const slab of activeSlabs) {
+      const fatMatches = fat >= slab.min_fat && fat <= slab.max_fat;
+      
+      // If SNF range is defined, check it; otherwise just match FAT
+      const snfMatches = slab.min_snf === null || slab.max_snf === null || 
+        (snf !== undefined && snf >= slab.min_snf && snf <= slab.max_snf);
+      
+      if (fatMatches && snfMatches) {
+        return slab.rate_per_litre;
+      }
+    }
+    return null;
+  }, [pricingSlabs]);
+
+  // Auto-calculate rate when FAT/SNF changes
+  useEffect(() => {
+    if (fatPercentage !== undefined && !isNaN(fatPercentage)) {
+      const matchedRate = findMatchingRate(fatPercentage, snfPercentage);
+      if (matchedRate !== null) {
+        setValue('rate_per_litre', matchedRate, { shouldValidate: true });
+        setIsAutoRate(true);
+      }
+    }
+  }, [fatPercentage, snfPercentage, findMatchingRate, setValue]);
+
+  // Reset auto-rate flag when user manually changes rate
+  const handleRateChange = () => {
+    setIsAutoRate(false);
+  };
 
   const totalAmount =
     quantity && rate ? Math.round(quantity * rate * 100) / 100 : 0;
