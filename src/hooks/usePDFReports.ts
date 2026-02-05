@@ -35,15 +35,15 @@ export async function generateDailyReport(date: string, centerId?: string): Prom
 
   if (error) throw error;
 
-  // Fetch center name if provided
-  let centerName = 'All Centers';
+  // Fetch center name if provided, otherwise try to get from user assignment
+  let centerName = '';
   if (centerId) {
     const { data: center } = await supabase
       .from('collection_centers')
       .select('name')
       .eq('id', centerId)
       .single();
-    centerName = center?.name || 'Collection Center';
+    centerName = center?.name || '';
   }
 
   const data: DailyCollectionData = {
