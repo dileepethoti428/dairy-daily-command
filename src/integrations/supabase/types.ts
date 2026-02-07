@@ -4055,6 +4055,50 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_formula: {
+        Row: {
+          collection_center_id: string | null
+          constant_value: number
+          created_at: string
+          fat_multiplier: number
+          id: string
+          is_active: boolean
+          mode: string
+          snf_multiplier: number
+          updated_at: string
+        }
+        Insert: {
+          collection_center_id?: string | null
+          constant_value?: number
+          created_at?: string
+          fat_multiplier?: number
+          id?: string
+          is_active?: boolean
+          mode?: string
+          snf_multiplier?: number
+          updated_at?: string
+        }
+        Update: {
+          collection_center_id?: string | null
+          constant_value?: number
+          created_at?: string
+          fat_multiplier?: number
+          id?: string
+          is_active?: boolean
+          mode?: string
+          snf_multiplier?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_formula_collection_center_id_fkey"
+            columns: ["collection_center_id"]
+            isOneToOne: false
+            referencedRelation: "collection_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_settings: {
         Row: {
           collection_center_id: string | null

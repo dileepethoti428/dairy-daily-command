@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { IndianRupee, Sun, Moon, Zap } from 'lucide-react';
+import { IndianRupee, Sun, Moon, Zap, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ValueWarning, checkMilkQualityWarnings } from '@/components/ui/value-warning';
 import { FarmerSelector } from './FarmerSelector';
+import { RateBreakdown } from './RateBreakdown';
 import { cn } from '@/lib/utils';
-import { usePricingSlabs, PricingSlab } from '@/hooks/usePricingSlabs';
+import { usePricingFormula, calculateRate } from '@/hooks/usePricingFormula';
 import type { MilkSession } from '@/hooks/useMilkEntries';
 
 const milkEntrySchema = z.object({
@@ -63,7 +64,7 @@ export function MilkEntryForm({
   const rateInputRef = useRef<HTMLInputElement>(null);
   
   const [isAutoRate, setIsAutoRate] = useState(false);
-  const { data: pricingSlabs } = usePricingSlabs();
+  const { data: pricingFormula } = usePricingFormula();
 
   const {
     register,
@@ -91,40 +92,33 @@ export function MilkEntryForm({
   const snfPercentage = watch('snf_percentage');
   const session = watch('session');
 
-  // Find matching pricing slab based on FAT/SNF
-  const findMatchingRate = useCallback((fat: number, snf: number | undefined): number | null => {
-    if (!pricingSlabs || pricingSlabs.length === 0) return null;
-    
-    const activeSlabs = pricingSlabs.filter(s => s.is_active);
-    
-    for (const slab of activeSlabs) {
-      const fatMatches = fat >= slab.min_fat && fat <= slab.max_fat;
-      
-      // If SNF range is defined, check it; otherwise just match FAT
-      const snfMatches = slab.min_snf === null || slab.max_snf === null || 
-        (snf !== undefined && snf >= slab.min_snf && snf <= slab.max_snf);
-      
-      if (fatMatches && snfMatches) {
-        return slab.rate_per_litre;
-      }
-    }
-    return null;
-  }, [pricingSlabs]);
+  // Determine if rate should be locked (auto mode)
+  const isRateLocked = pricingFormula?.mode === 'auto';
+  const isFormulaEnabled = pricingFormula && pricingFormula.mode !== 'manual';
 
-  // Auto-calculate rate when FAT/SNF changes
+  // Auto-calculate rate when FAT/SNF changes (for auto or hybrid modes)
   useEffect(() => {
-    if (fatPercentage !== undefined && !isNaN(fatPercentage)) {
-      const matchedRate = findMatchingRate(fatPercentage, snfPercentage);
-      if (matchedRate !== null) {
-        setValue('rate_per_litre', matchedRate, { shouldValidate: true });
+    if (!isFormulaEnabled) return;
+    
+    if (
+      fatPercentage !== undefined && 
+      !isNaN(fatPercentage) && 
+      snfPercentage !== undefined && 
+      !isNaN(snfPercentage)
+    ) {
+      const calculatedRate = calculateRate(fatPercentage, snfPercentage, pricingFormula);
+      if (calculatedRate !== null && calculatedRate > 0) {
+        setValue('rate_per_litre', calculatedRate, { shouldValidate: true });
         setIsAutoRate(true);
       }
     }
-  }, [fatPercentage, snfPercentage, findMatchingRate, setValue]);
+  }, [fatPercentage, snfPercentage, pricingFormula, isFormulaEnabled, setValue]);
 
-  // Reset auto-rate flag when user manually changes rate
+  // Reset auto-rate flag when user manually changes rate (only for hybrid mode)
   const handleRateChange = () => {
-    setIsAutoRate(false);
+    if (!isRateLocked) {
+      setIsAutoRate(false);
+    }
   };
 
   const totalAmount =
@@ -328,43 +322,25 @@ export function MilkEntryForm({
             </div>
           )}
 
-          {/* Pricing Slabs Reference */}
-          {pricingSlabs && pricingSlabs.length > 0 && (
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Rate Slabs (FAT %)</p>
-              <div className="flex flex-wrap gap-2">
-                {pricingSlabs.filter(s => s.is_active).map((slab) => {
-                  const isMatched = fatPercentage !== undefined && 
-                    fatPercentage >= slab.min_fat && 
-                    fatPercentage <= slab.max_fat &&
-                    (slab.min_snf === null || slab.max_snf === null || 
-                      (snfPercentage !== undefined && snfPercentage >= slab.min_snf && snfPercentage <= slab.max_snf));
-                  
-                  return (
-                    <div
-                      key={slab.id}
-                      className={cn(
-                        'rounded-md border px-2 py-1 text-xs',
-                        isMatched 
-                          ? 'border-primary bg-primary/10 text-primary font-medium' 
-                          : 'border-border bg-background text-muted-foreground'
-                      )}
-                    >
-                      <span>{slab.min_fat}-{slab.max_fat}%</span>
-                      <span className="mx-1">→</span>
-                      <span className="font-semibold">₹{slab.rate_per_litre}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* Rate Breakdown - shows formula calculation */}
+          <RateBreakdown
+            fat={fatPercentage}
+            snf={snfPercentage}
+            formula={pricingFormula || null}
+            isAutoRate={isAutoRate}
+          />
 
           {/* Rate */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="rate">Rate per Litre (₹)</Label>
-              {isAutoRate && (
+              {isRateLocked && (
+                <Badge variant="secondary" className="gap-1 text-xs">
+                  <Lock className="h-3 w-3" />
+                  Locked
+                </Badge>
+              )}
+              {!isRateLocked && isAutoRate && (
                 <Badge variant="secondary" className="gap-1 text-xs">
                   <Zap className="h-3 w-3" />
                   Auto
@@ -382,10 +358,12 @@ export function MilkEntryForm({
                 inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
+                disabled={isRateLocked}
                 className={cn(
                   'h-14 pl-8 text-lg',
                   errors.rate_per_litre && 'border-destructive',
-                  isAutoRate && 'border-primary/50 bg-primary/5'
+                  isAutoRate && 'border-primary/50 bg-primary/5',
+                  isRateLocked && 'bg-muted cursor-not-allowed'
                 )}
                 {...register('rate_per_litre', { valueAsNumber: true })}
                 onChange={(e) => {
@@ -399,9 +377,14 @@ export function MilkEntryForm({
                 {errors.rate_per_litre.message}
               </p>
             )}
-            {!pricingSlabs?.length && (
+            {!pricingFormula && (
               <p className="text-xs text-muted-foreground">
-                No pricing slabs configured. Enter rate manually.
+                No pricing formula configured. Enter rate manually.
+              </p>
+            )}
+            {pricingFormula?.mode === 'manual' && (
+              <p className="text-xs text-muted-foreground">
+                Pricing mode is set to manual. Enter rate manually.
               </p>
             )}
           </div>

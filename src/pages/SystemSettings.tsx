@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { useSystemSettings, useUpdateBusinessInfo, BusinessInfo } from '@/hooks/useSystemSettings';
 import { useAuth } from '@/contexts/AuthContext';
-import { PricingSlabCard } from '@/components/settings/PricingSlabCard';
+import { PricingFormulaCard } from '@/components/settings/PricingFormulaCard';
 import {
   Building2,
   Cog,
@@ -207,7 +207,7 @@ export default function SystemSettings() {
         </Card>
 
         {/* Pricing Configuration */}
-        <PricingSlabCard />
+        <PricingFormulaCard />
 
         <Separator />
 
