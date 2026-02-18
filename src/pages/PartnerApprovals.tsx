@@ -4,6 +4,8 @@ import {
   useAllApplications,
   useApproveApplication,
   useRejectApplication,
+  useDeactivateAccount,
+  useActivateAccount,
 } from '@/hooks/usePartnerApplications';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,81 +30,11 @@ import {
   Phone,
   Mail,
   Calendar,
+  ShieldOff,
+  ShieldCheck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { PartnerApplication } from '@/hooks/usePartnerApplications';
-
-function ApplicationCard({
-  application,
-  onApprove,
-  onReject,
-}: {
-  application: PartnerApplication;
-  onApprove?: () => void;
-  onReject?: () => void;
-}) {
-  return (
-    <Card className="shadow-sm">
-      <CardContent className="pt-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm flex-shrink-0">
-              {application.full_name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">{application.full_name}</p>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                {format(new Date(application.created_at), 'dd MMM yyyy, h:mm a')}
-              </div>
-            </div>
-          </div>
-          <StatusBadge status={application.status} />
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Phone className="h-3.5 w-3.5" />
-            {application.contact_number}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mail className="h-3.5 w-3.5" />
-            {application.email}
-          </div>
-        </div>
-
-        {application.rejection_reason && (
-          <div className="rounded-md bg-destructive/5 border border-destructive/20 px-3 py-2">
-            <p className="text-xs font-medium text-destructive">Rejection reason:</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{application.rejection_reason}</p>
-          </div>
-        )}
-
-        {onApprove && onReject && (
-          <div className="flex gap-2 pt-1">
-            <Button
-              size="sm"
-              className="flex-1"
-              onClick={onApprove}
-            >
-              <CheckCircle className="mr-1.5 h-4 w-4" />
-              Approve
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={onReject}
-            >
-              <XCircle className="mr-1.5 h-4 w-4" />
-              Reject
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function StatusBadge({ status }: { status: PartnerApplication['status'] }) {
   if (status === 'pending') {
@@ -129,14 +61,126 @@ function StatusBadge({ status }: { status: PartnerApplication['status'] }) {
   );
 }
 
+function ApplicationCard({
+  application,
+  onApprove,
+  onReject,
+  onDeactivate,
+  onActivate,
+}: {
+  application: PartnerApplication;
+  onApprove?: () => void;
+  onReject?: () => void;
+  onDeactivate?: () => void;
+  onActivate?: () => void;
+}) {
+  return (
+    <Card className="shadow-sm">
+      <CardContent className="pt-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm flex-shrink-0">
+              {application.full_name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{application.full_name}</p>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                {format(new Date(application.created_at), 'dd MMM yyyy, h:mm a')}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <StatusBadge status={application.status} />
+            {application.status === 'approved' && !application.is_active && (
+              <Badge variant="outline" className="text-muted-foreground border-border bg-muted text-xs">
+                <ShieldOff className="mr-1 h-3 w-3" />
+                Deactivated
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Phone className="h-3.5 w-3.5" />
+            {application.contact_number}
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="h-3.5 w-3.5" />
+            {application.email}
+          </div>
+        </div>
+
+        {application.rejection_reason && (
+          <div className="rounded-md bg-destructive/5 border border-destructive/20 px-3 py-2">
+            <p className="text-xs font-medium text-destructive">Rejection reason:</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{application.rejection_reason}</p>
+          </div>
+        )}
+
+        {/* Pending actions */}
+        {onApprove && onReject && (
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" className="flex-1" onClick={onApprove}>
+              <CheckCircle className="mr-1.5 h-4 w-4" />
+              Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={onReject}
+            >
+              <XCircle className="mr-1.5 h-4 w-4" />
+              Reject
+            </Button>
+          </div>
+        )}
+
+        {/* Approved tab: deactivate / activate toggle */}
+        {(onDeactivate || onActivate) && (
+          <div className="pt-1">
+            {application.is_active ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={onDeactivate}
+              >
+                <ShieldOff className="mr-1.5 h-4 w-4" />
+                Deactivate Account
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/20"
+                onClick={onActivate}
+              >
+                <ShieldCheck className="mr-1.5 h-4 w-4" />
+                Activate Account
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ApplicationList({
   status,
   onApprove,
   onReject,
+  onDeactivate,
+  onActivate,
 }: {
   status: 'pending' | 'approved' | 'rejected';
   onApprove?: (app: PartnerApplication) => void;
   onReject?: (app: PartnerApplication) => void;
+  onDeactivate?: (app: PartnerApplication) => void;
+  onActivate?: (app: PartnerApplication) => void;
 }) {
   const { data: applications, isLoading } = useAllApplications(status);
 
@@ -178,6 +222,8 @@ function ApplicationList({
           application={app}
           onApprove={onApprove ? () => onApprove(app) : undefined}
           onReject={onReject ? () => onReject(app) : undefined}
+          onDeactivate={onDeactivate ? () => onDeactivate(app) : undefined}
+          onActivate={onActivate ? () => onActivate(app) : undefined}
         />
       ))}
     </div>
@@ -187,6 +233,8 @@ function ApplicationList({
 export default function PartnerApprovals() {
   const approveApp = useApproveApplication();
   const rejectApp = useRejectApplication();
+  const deactivateAccount = useDeactivateAccount();
+  const activateAccount = useActivateAccount();
 
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState<PartnerApplication | null>(null);
@@ -213,6 +261,14 @@ export default function PartnerApprovals() {
         },
       }
     );
+  };
+
+  const handleDeactivate = (app: PartnerApplication) => {
+    deactivateAccount.mutate(app.id);
+  };
+
+  const handleActivate = (app: PartnerApplication) => {
+    activateAccount.mutate(app.id);
   };
 
   return (
@@ -246,7 +302,11 @@ export default function PartnerApprovals() {
           </TabsContent>
 
           <TabsContent value="approved" className="mt-4">
-            <ApplicationList status="approved" />
+            <ApplicationList
+              status="approved"
+              onDeactivate={handleDeactivate}
+              onActivate={handleActivate}
+            />
           </TabsContent>
 
           <TabsContent value="rejected" className="mt-4">

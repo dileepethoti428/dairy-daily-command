@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, loading, userRole, applicationStatus, applicationRejectionReason } = useAuth();
+  const { user, loading, userRole, applicationStatus, applicationRejectionReason, accountDeactivated } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -22,6 +22,11 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // Block deactivated accounts (non-admin only)
+  if (userRole !== 'admin' && accountDeactivated) {
+    return <ApplicationPending status="deactivated" />;
   }
 
   // Block non-admin users whose application is pending or rejected

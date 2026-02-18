@@ -14,6 +14,7 @@ interface AuthContextType {
   isStaff: boolean;
   applicationStatus: ApplicationStatus | null;
   applicationRejectionReason: string | null;
+  accountDeactivated: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<AppRole>('staff');
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus | null>(null);
   const [applicationRejectionReason, setApplicationRejectionReason] = useState<string | null>(null);
+  const [accountDeactivated, setAccountDeactivated] = useState(false);
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff' || userRole === 'user';
@@ -96,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('dairy_partner_applications')
-        .select('status, rejection_reason')
+        .select('status, rejection_reason, is_active')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -108,9 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data) {
         setApplicationStatus(data.status as ApplicationStatus);
         setApplicationRejectionReason(data.rejection_reason ?? null);
+        setAccountDeactivated(data.is_active === false);
       } else {
         setApplicationStatus(null);
         setApplicationRejectionReason(null);
+        setAccountDeactivated(false);
       }
     } catch (err) {
       console.error('Error fetching application status:', err);
@@ -150,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserRole('staff');
     setApplicationStatus(null);
     setApplicationRejectionReason(null);
+    setAccountDeactivated(false);
   };
 
   return (
@@ -162,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isStaff,
       applicationStatus,
       applicationRejectionReason,
+      accountDeactivated,
       signIn, 
       signUp, 
       signOut 

@@ -14,6 +14,7 @@ export interface PartnerApplication {
   rejection_reason: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -157,6 +158,54 @@ export function useRejectApplication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['partner-applications'] });
       toast({ title: 'Application rejected', description: 'The partner has been notified.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+// Deactivate a partner account (admin only)
+export function useDeactivateAccount() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (applicationId: string) => {
+      const { error } = await supabase
+        .from('dairy_partner_applications')
+        .update({ is_active: false })
+        .eq('id', applicationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partner-applications'] });
+      toast({ title: 'Account deactivated', description: 'The partner can no longer log in.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+// Activate a partner account (admin only)
+export function useActivateAccount() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (applicationId: string) => {
+      const { error } = await supabase
+        .from('dairy_partner_applications')
+        .update({ is_active: true })
+        .eq('id', applicationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partner-applications'] });
+      toast({ title: 'Account activated', description: 'The partner can now log in again.' });
     },
     onError: (error: Error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
