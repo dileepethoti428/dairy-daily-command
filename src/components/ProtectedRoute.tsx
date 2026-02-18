@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import ApplicationPending from '@/pages/ApplicationPending';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, loading, userRole } = useAuth();
+  const { user, loading, userRole, applicationStatus, applicationRejectionReason } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -21,6 +22,17 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // Block non-admin users whose application is pending or rejected
+  if (userRole !== 'admin' && applicationStatus === 'pending') {
+    return <ApplicationPending status="pending" />;
+  }
+
+  if (userRole !== 'admin' && applicationStatus === 'rejected') {
+    return (
+      <ApplicationPending status="rejected" rejectionReason={applicationRejectionReason} />
+    );
   }
 
   if (requiredRole && userRole !== requiredRole && userRole !== 'admin') {

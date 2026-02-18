@@ -1692,6 +1692,48 @@ export type Database = {
         }
         Relationships: []
       }
+      dairy_partner_applications: {
+        Row: {
+          contact_number: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact_number: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact_number?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       delivery_addresses: {
         Row: {
           city: string
