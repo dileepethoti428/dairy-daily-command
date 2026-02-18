@@ -1,117 +1,85 @@
 
-# Fix: Partner Pricing Formula Showing Global Values — True Root Cause Found
+# Fix: Vercel SPA 404 on Page Refresh / Direct Route Access
 
-## The Actual Problem (Confirmed via Database)
+## Root Cause
 
-All previous fixes were addressing the wrong layer. The real issue is a **missing center assignment**.
+Vercel does **not** read `public/_redirects` (that file is specific to Netlify/Lovable's hosting). When a user refreshes `/dashboard` or navigates directly to any route, Vercel looks for a physical file at that path on its CDN. Since this is a SPA — only `index.html` exists at the root — Vercel returns a **404**.
 
-The partner `poori673@gmail.com` was approved but has **no row in `user_center_assignments`**:
-
-```
-user_id: c54659bb...
-role: user
-center_id: NULL  ← no assignment exists
-```
-
-Because there is no center assignment:
-1. `CenterContext` loads — `userAssignedCenter` is `null` — `selectedCenter` is `null`
-2. `Settings.tsx` passes `centerId={selectedCenter?.id ?? null}` → `null`
-3. `PricingFormulaCard` receives `centerId=null` — the same as admin's global view
-4. `useEnsureCenterFormula(null)` immediately returns (no-op for null)
-5. The partner edits and saves to the **global formula** row (not their own center)
-6. On refresh, they load the global formula — their changes are there only because they overwrote global
-
-The `useApproveApplication` hook only grants a `user` role. **It never assigns the partner to a center.** This is the root cause of everything.
+The fix is a `vercel.json` file in the project root that tells Vercel to rewrite all requests to `index.html`, while still serving real static assets (JS, CSS, images) directly.
 
 ---
 
-## Two-Part Fix
+## What Will Be Created
 
-### Part 1 — Admin must be able to assign a center when approving a partner
+### `vercel.json` (new file in project root)
 
-The Partner Approvals page needs a "Assign Center" step. When the admin approves a partner, they should also be able to select which collection center to assign that partner to.
-
-**Changes to `src/hooks/usePartnerApplications.ts`:**
-
-Update `useApproveApplication` to accept an optional `centerId`. If provided, insert a row into `user_center_assignments` after approving:
-
-```typescript
-mutationFn: async ({ applicationId, userId, centerId }: { 
-  applicationId: string; 
-  userId: string; 
-  centerId?: string;
-}) => {
-  // 1. Update application status (existing)
-  // 2. Assign 'user' role (existing)
-  // 3. NEW: If centerId provided, create center assignment
-  if (centerId) {
-    await supabase.from('user_center_assignments').upsert({
-      user_id: userId,
-      center_id: centerId,
-      is_primary: true,
-    }, { onConflict: 'user_id,center_id' });
-  }
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(?:js|css|woff2?|png|jpg|jpeg|gif|svg|ico|webp)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ]
 }
 ```
 
-**Changes to `src/pages/PartnerApprovals.tsx`:**
+#### What each section does:
 
-When admin clicks "Approve", show a dialog asking them to select a collection center before confirming approval. The dialog should:
-- Show a dropdown/select of all active collection centers
-- Make center selection required
-- Pass `centerId` to `useApproveApplication`
-
-### Part 2 — Fix `Settings.tsx` for partners without a center (edge case safety)
-
-Currently, when `selectedCenter` is null for a non-admin user, the `PricingFormulaCard` shows the global formula card (same as admin). This is wrong.
-
-For partners/staff with no center assigned, show a clear message instead of the formula card: "No collection center assigned to your account. Please contact the administrator."
-
-**Change in `src/pages/Settings.tsx`:**
-
-```tsx
-{isAdmin ? (
-  <PricingFormulaCard centerId={null} centerName={null} />
-) : selectedCenter ? (
-  <PricingFormulaCard 
-    centerId={selectedCenter.id} 
-    centerName={selectedCenter.name} 
-  />
-) : (
-  <Card>
-    <CardContent>
-      <p className="text-muted-foreground text-sm">
-        No collection center assigned. Contact admin.
-      </p>
-    </CardContent>
-  </Card>
-)}
-```
-
----
-
-## Files to Modify
-
-| File | Change |
+| Section | Purpose |
 |---|---|
-| `src/hooks/usePartnerApplications.ts` | Update `useApproveApplication` to accept and handle `centerId` |
-| `src/pages/PartnerApprovals.tsx` | Add center selection dialog on approve, pass centerId |
-| `src/pages/Settings.tsx` | Guard formula card — only show when partner has a center |
+| `rewrites` | Catches every URL and serves `index.html` — React Router then handles the route on the client side |
+| `headers` on `/assets/(.*)` | Vite outputs hashed JS/CSS chunks into `/assets/` — these are permanently cacheable (`immutable`) |
+| `headers` on static file extensions | Any other static files (fonts, images, icons) also get long cache |
+| `headers` on `/index.html` | The HTML shell must **never** be cached so users always get the latest deploy |
 
-## Database Migration
+#### Why `rewrites` instead of `redirects`?
 
-One new migration is needed: ensure `user_center_assignments` has a unique constraint on `(user_id, center_id)` so the upsert in `useApproveApplication` works cleanly. This may already exist — we will check and add if missing.
+- `redirects` would change the URL in the browser (e.g., `/dashboard` → `/index.html`) — breaking the app
+- `rewrites` serves `index.html` **without changing the URL**, so React Router sees `/dashboard` and renders the correct page
 
 ---
 
-## What This Solves
+## Files to Create / Modify
 
-- Partners who are newly approved get assigned to a specific center immediately
-- Their `selectedCenter` will be non-null after login
-- The pricing formula isolation (per-center rows) will work correctly
-- Admin changes to global formula will never affect center-specific rows
-- Partners navigating away and back will always see their own saved values
+| File | Action | Description |
+|---|---|---|
+| `vercel.json` | Create | SPA rewrite rule + cache headers for Vercel |
 
-## Bonus: Assign Center to Existing Approved Partners
+No existing files need to be modified. The `public/_redirects` file can stay in place — it handles Lovable's preview hosting and does not conflict with Vercel.
 
-For already-approved partners with no center (like `poori673@gmail.com`), the admin can use the existing "Assign to Center" feature in the Partner Approvals approved tab. We will add an "Assign Center" button for approved partners who have no center assignment yet.
+---
+
+## After Deploying
+
+Once this file is pushed and Vercel rebuilds:
+- Refreshing `/farmers`, `/settings`, `/reports`, or any other route will load correctly
+- Direct URL access (e.g., from a bookmark or shared link) will work
+- Static assets will be aggressively cached for performance
+- `index.html` will always be fresh after each deploy
