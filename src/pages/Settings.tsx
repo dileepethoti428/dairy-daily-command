@@ -315,12 +315,24 @@ export default function Settings() {
             centerId={null}
             centerName={null}
           />
-        ) : (
-          /* Partners/Staff always see their own center's formula (auto-isolated) */
+        ) : selectedCenter ? (
+          /* Partners/Staff see their own center's formula (isolated per-center) */
           <PricingFormulaCard
-            centerId={selectedCenter?.id ?? null}
-            centerName={selectedCenter?.name ?? null}
+            centerId={selectedCenter.id}
+            centerName={selectedCenter.name}
           />
+        ) : (
+          /* Partner has no center assigned yet */
+          <Card className="shadow-dairy">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Building2 className="h-5 w-5 flex-shrink-0" />
+                <p className="text-sm">
+                  No collection center assigned to your account. Please contact the administrator.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Admin Section */}

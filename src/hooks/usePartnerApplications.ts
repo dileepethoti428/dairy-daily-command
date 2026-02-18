@@ -102,7 +102,7 @@ export function useApproveApplication() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ applicationId, userId }: { applicationId: string; userId: string }) => {
+    mutationFn: async ({ applicationId, userId, centerId }: { applicationId: string; userId: string; centerId?: string }) => {
       // 1. Update application status
       const { error: appError } = await supabase
         .from('dairy_partner_applications')
@@ -120,6 +120,17 @@ export function useApproveApplication() {
         .upsert({ user_id: userId, role: 'user' }, { onConflict: 'user_id,role' });
 
       if (roleError) throw roleError;
+
+      // 3. Assign to collection center if provided
+      if (centerId) {
+        const { error: centerError } = await supabase
+          .from('user_center_assignments')
+          .upsert(
+            { user_id: userId, center_id: centerId, is_primary: true },
+            { onConflict: 'user_id,center_id' }
+          );
+        if (centerError) throw centerError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['partner-applications'] });
