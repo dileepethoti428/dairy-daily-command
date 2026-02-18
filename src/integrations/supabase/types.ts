@@ -1699,6 +1699,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_active: boolean
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -1712,6 +1713,7 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          is_active?: boolean
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1725,6 +1727,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_active?: boolean
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
