@@ -64,7 +64,8 @@ export function MilkEntryForm({
   const rateInputRef = useRef<HTMLInputElement>(null);
   
   const [isAutoRate, setIsAutoRate] = useState(false);
-  const { data: pricingFormula } = usePricingFormula();
+  const { data: pricingData } = usePricingFormula();
+  const pricingFormula = pricingData?.formula ?? null;
 
   const {
     register,

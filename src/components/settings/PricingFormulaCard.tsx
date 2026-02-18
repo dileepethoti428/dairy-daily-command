@@ -14,11 +14,12 @@ import {
 } from '@/components/ui/select';
 import {
   usePricingFormula,
+  useEnsureCenterFormula,
   useUpdatePricingFormula,
   calculateRate,
   PricingMode,
 } from '@/hooks/usePricingFormula';
-import { Calculator, Loader2, Info, Globe, Building2 } from 'lucide-react';
+import { Calculator, Loader2, Info, Globe, Building2, Sparkles } from 'lucide-react';
 
 interface PricingFormulaCardProps {
   centerId?: string | null;
@@ -26,7 +27,13 @@ interface PricingFormulaCardProps {
 }
 
 export function PricingFormulaCard({ centerId, centerName }: PricingFormulaCardProps) {
-  const { data: formula, isLoading } = usePricingFormula(centerId);
+  // Auto-initialize center-specific formula if missing (partners only)
+  useEnsureCenterFormula(centerId);
+
+  const { data: pricingData, isLoading } = usePricingFormula(centerId);
+  const formula = pricingData?.formula ?? null;
+  const isInherited = pricingData?.isInherited ?? false;
+
   const updateFormula = useUpdatePricingFormula(centerId);
 
   const [fatMultiplier, setFatMultiplier] = useState<string>('6');
@@ -105,7 +112,7 @@ export function PricingFormulaCard({ centerId, centerName }: PricingFormulaCardP
           {isGlobal ? (
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground ml-auto">
               <Globe className="h-3.5 w-3.5" />
-              Global
+              Global Default
             </span>
           ) : (
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground ml-auto">
@@ -116,11 +123,22 @@ export function PricingFormulaCard({ centerId, centerName }: PricingFormulaCardP
         </CardTitle>
         <CardDescription>
           {isGlobal
-            ? 'Default formula used by all centers without a custom formula'
-            : `Custom milk rate formula for ${centerName || 'this center'}`}
+            ? 'Default formula used by centers without a custom formula. Changes here do not affect centers that have saved their own formula.'
+            : `Custom milk rate formula for ${centerName || 'this center'}. Changes here only affect your center.`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+
+        {/* Info banner: shown only briefly when formula was just copied from global */}
+        {!isGlobal && isInherited && (
+          <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <Sparkles className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Setting up your center's formula from the global default. You can customize it freely — your changes won't affect other centers.
+            </p>
+          </div>
+        )}
+
         {/* Formula Display */}
         <div className="rounded-lg bg-muted/50 p-4">
           <p className="text-sm text-muted-foreground mb-2">Formula:</p>
