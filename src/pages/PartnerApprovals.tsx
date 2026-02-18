@@ -272,10 +272,6 @@ export default function PartnerApprovals() {
   const [selectedApp, setSelectedApp] = useState<PartnerApplication | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Approve dialog (center selection)
-  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
-  const [pendingApproveApp, setPendingApproveApp] = useState<PartnerApplication | null>(null);
-  const [selectedCenterId, setSelectedCenterId] = useState('');
 
   // Assign center dialog (for already-approved partners)
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -287,22 +283,7 @@ export default function PartnerApprovals() {
 
   // --- Approve flow ---
   const handleApproveClick = (app: PartnerApplication) => {
-    setPendingApproveApp(app);
-    setSelectedCenterId('');
-    setApproveDialogOpen(true);
-  };
-
-  const handleApproveConfirm = () => {
-    if (!pendingApproveApp) return;
-    approveMutation.mutate(
-      { applicationId: pendingApproveApp.id, userId: pendingApproveApp.user_id, centerId: selectedCenterId || undefined },
-      {
-        onSuccess: () => {
-          setApproveDialogOpen(false);
-          setPendingApproveApp(null);
-        },
-      }
-    );
+    approveMutation.mutate({ applicationId: app.id, userId: app.user_id });
   };
 
   // --- Reject flow ---
@@ -405,44 +386,6 @@ export default function PartnerApprovals() {
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Approve Dialog — center selection */}
-      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Approve Application</DialogTitle>
-            <DialogDescription>
-              Select a collection center to assign {pendingApproveApp?.full_name} to. This is required so the partner can access their data.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="centerSelect">Collection Center <span className="text-destructive">*</span></Label>
-            <Select value={selectedCenterId} onValueChange={setSelectedCenterId}>
-              <SelectTrigger id="centerSelect">
-                <SelectValue placeholder="Select a center..." />
-              </SelectTrigger>
-              <SelectContent>
-                {activeCenters.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name} ({c.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleApproveConfirm}
-              disabled={!selectedCenterId || approveMutation.isPending}
-            >
-              {approveMutation.isPending ? 'Approving...' : 'Approve & Assign'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
