@@ -7,6 +7,7 @@ import {
   useDeactivateAccount,
   useActivateAccount,
 } from '@/hooks/usePartnerApplications';
+import { useAllCollectionCenters } from '@/hooks/useCollectionCenters';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,13 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   CheckCircle,
@@ -32,8 +40,12 @@ import {
   Calendar,
   ShieldOff,
   ShieldCheck,
+  Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import type { PartnerApplication } from '@/hooks/usePartnerApplications';
 
 function StatusBadge({ status }: { status: PartnerApplication['status'] }) {
@@ -67,12 +79,14 @@ function ApplicationCard({
   onReject,
   onDeactivate,
   onActivate,
+  onAssignCenter,
 }: {
   application: PartnerApplication;
   onApprove?: () => void;
   onReject?: () => void;
   onDeactivate?: () => void;
   onActivate?: () => void;
+  onAssignCenter?: () => void;
 }) {
   return (
     <Card className="shadow-sm">
@@ -138,9 +152,20 @@ function ApplicationCard({
           </div>
         )}
 
-        {/* Approved tab: deactivate / activate toggle */}
-        {(onDeactivate || onActivate) && (
-          <div className="pt-1">
+        {/* Approved tab: deactivate / activate toggle + assign center */}
+        {(onDeactivate || onActivate || onAssignCenter) && (
+          <div className="pt-1 space-y-2">
+            {onAssignCenter && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-primary border-primary/40 hover:bg-primary/10"
+                onClick={onAssignCenter}
+              >
+                <Building2 className="mr-1.5 h-4 w-4" />
+                Assign Center
+              </Button>
+            )}
             {application.is_active ? (
               <Button
                 size="sm"
@@ -175,12 +200,14 @@ function ApplicationList({
   onReject,
   onDeactivate,
   onActivate,
+  onAssignCenter,
 }: {
   status: 'pending' | 'approved' | 'rejected';
   onApprove?: (app: PartnerApplication) => void;
   onReject?: (app: PartnerApplication) => void;
   onDeactivate?: (app: PartnerApplication) => void;
   onActivate?: (app: PartnerApplication) => void;
+  onAssignCenter?: (app: PartnerApplication) => void;
 }) {
   const { data: applications, isLoading } = useAllApplications(status);
 
@@ -224,6 +251,7 @@ function ApplicationList({
           onReject={onReject ? () => onReject(app) : undefined}
           onDeactivate={onDeactivate ? () => onDeactivate(app) : undefined}
           onActivate={onActivate ? () => onActivate(app) : undefined}
+          onAssignCenter={onAssignCenter ? () => onAssignCenter(app) : undefined}
         />
       ))}
     </div>
@@ -231,19 +259,53 @@ function ApplicationList({
 }
 
 export default function PartnerApprovals() {
-  const approveApp = useApproveApplication();
+  const approveMutation = useApproveApplication();
   const rejectApp = useRejectApplication();
   const deactivateAccount = useDeactivateAccount();
   const activateAccount = useActivateAccount();
+  const { data: centers } = useAllCollectionCenters();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
+  // Reject dialog
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState<PartnerApplication | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  const handleApprove = (app: PartnerApplication) => {
-    approveApp.mutate({ applicationId: app.id, userId: app.user_id });
+  // Approve dialog (center selection)
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [pendingApproveApp, setPendingApproveApp] = useState<PartnerApplication | null>(null);
+  const [selectedCenterId, setSelectedCenterId] = useState('');
+
+  // Assign center dialog (for already-approved partners)
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignApp, setAssignApp] = useState<PartnerApplication | null>(null);
+  const [assignCenterId, setAssignCenterId] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
+
+  const activeCenters = centers?.filter((c) => c.is_active) ?? [];
+
+  // --- Approve flow ---
+  const handleApproveClick = (app: PartnerApplication) => {
+    setPendingApproveApp(app);
+    setSelectedCenterId('');
+    setApproveDialogOpen(true);
   };
 
+  const handleApproveConfirm = () => {
+    if (!pendingApproveApp) return;
+    approveMutation.mutate(
+      { applicationId: pendingApproveApp.id, userId: pendingApproveApp.user_id, centerId: selectedCenterId || undefined },
+      {
+        onSuccess: () => {
+          setApproveDialogOpen(false);
+          setPendingApproveApp(null);
+        },
+      }
+    );
+  };
+
+  // --- Reject flow ---
   const handleRejectClick = (app: PartnerApplication) => {
     setSelectedApp(app);
     setRejectionReason('');
@@ -263,12 +325,40 @@ export default function PartnerApprovals() {
     );
   };
 
+  // --- Deactivate / Activate ---
   const handleDeactivate = (app: PartnerApplication) => {
     deactivateAccount.mutate(app.id);
   };
 
   const handleActivate = (app: PartnerApplication) => {
     activateAccount.mutate(app.id);
+  };
+
+  // --- Assign center to existing approved partner ---
+  const handleAssignCenterClick = (app: PartnerApplication) => {
+    setAssignApp(app);
+    setAssignCenterId('');
+    setAssignDialogOpen(true);
+  };
+
+  const handleAssignCenterConfirm = async () => {
+    if (!assignApp || !assignCenterId) return;
+    setAssignLoading(true);
+    const { error } = await supabase
+      .from('user_center_assignments')
+      .upsert(
+        { user_id: assignApp.user_id, center_id: assignCenterId, is_primary: true },
+        { onConflict: 'user_id,center_id' }
+      );
+    setAssignLoading(false);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Center assigned', description: `${assignApp.full_name} has been assigned to the selected center.` });
+      queryClient.invalidateQueries({ queryKey: ['partner-applications'] });
+      setAssignDialogOpen(false);
+      setAssignApp(null);
+    }
   };
 
   return (
@@ -296,7 +386,7 @@ export default function PartnerApprovals() {
           <TabsContent value="pending" className="mt-4">
             <ApplicationList
               status="pending"
-              onApprove={handleApprove}
+              onApprove={handleApproveClick}
               onReject={handleRejectClick}
             />
           </TabsContent>
@@ -306,6 +396,7 @@ export default function PartnerApprovals() {
               status="approved"
               onDeactivate={handleDeactivate}
               onActivate={handleActivate}
+              onAssignCenter={handleAssignCenterClick}
             />
           </TabsContent>
 
@@ -314,6 +405,44 @@ export default function PartnerApprovals() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Approve Dialog — center selection */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Application</DialogTitle>
+            <DialogDescription>
+              Select a collection center to assign {pendingApproveApp?.full_name} to. This is required so the partner can access their data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="centerSelect">Collection Center <span className="text-destructive">*</span></Label>
+            <Select value={selectedCenterId} onValueChange={setSelectedCenterId}>
+              <SelectTrigger id="centerSelect">
+                <SelectValue placeholder="Select a center..." />
+              </SelectTrigger>
+              <SelectContent>
+                {activeCenters.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleApproveConfirm}
+              disabled={!selectedCenterId || approveMutation.isPending}
+            >
+              {approveMutation.isPending ? 'Approving...' : 'Approve & Assign'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
@@ -344,6 +473,44 @@ export default function PartnerApprovals() {
               disabled={rejectApp.isPending}
             >
               {rejectApp.isPending ? 'Rejecting...' : 'Reject Application'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Center Dialog (for already-approved partners) */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Collection Center</DialogTitle>
+            <DialogDescription>
+              Assign {assignApp?.full_name} to a collection center so they can access center-specific data and pricing.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="assignCenterSelect">Collection Center <span className="text-destructive">*</span></Label>
+            <Select value={assignCenterId} onValueChange={setAssignCenterId}>
+              <SelectTrigger id="assignCenterSelect">
+                <SelectValue placeholder="Select a center..." />
+              </SelectTrigger>
+              <SelectContent>
+                {activeCenters.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignCenterConfirm}
+              disabled={!assignCenterId || assignLoading}
+            >
+              {assignLoading ? 'Assigning...' : 'Assign Center'}
             </Button>
           </DialogFooter>
         </DialogContent>
