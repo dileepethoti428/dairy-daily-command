@@ -30,6 +30,7 @@ import TermsAndConditions from "./pages/TermsAndConditions";
 import PartnerApprovals from "./pages/PartnerApprovals";
 import SettlementList from "./pages/SettlementList";
 import SettlementDetail from "./pages/SettlementDetail";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
             <CenterProvider>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route
                   path="/"
                   element={
