@@ -1139,6 +1139,7 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
+          rate_per_litre: number | null
           updated_at: string
           village_or_area: string | null
         }
@@ -1150,6 +1151,7 @@ export type Database = {
           is_active?: boolean
           name: string
           phone?: string | null
+          rate_per_litre?: number | null
           updated_at?: string
           village_or_area?: string | null
         }
@@ -1161,10 +1163,70 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          rate_per_litre?: number | null
           updated_at?: string
           village_or_area?: string | null
         }
         Relationships: []
+      }
+      collection_partner_bank_details: {
+        Row: {
+          account_holder_name: string
+          account_number: string
+          account_type: string
+          bank_branch: string | null
+          bank_name: string
+          center_id: string
+          created_at: string
+          id: string
+          ifsc_code: string
+          is_primary: boolean
+          is_verified: boolean
+          pan_number: string | null
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          account_holder_name: string
+          account_number: string
+          account_type?: string
+          bank_branch?: string | null
+          bank_name: string
+          center_id: string
+          created_at?: string
+          id?: string
+          ifsc_code: string
+          is_primary?: boolean
+          is_verified?: boolean
+          pan_number?: string | null
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          account_holder_name?: string
+          account_number?: string
+          account_type?: string
+          bank_branch?: string | null
+          bank_name?: string
+          center_id?: string
+          created_at?: string
+          id?: string
+          ifsc_code?: string
+          is_primary?: boolean
+          is_verified?: boolean
+          pan_number?: string | null
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_partner_bank_details_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "collection_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       commission_config: {
         Row: {
