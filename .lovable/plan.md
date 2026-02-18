@@ -1,62 +1,104 @@
 
-## Root Cause Analysis & Full Deployment Audit
+# Add Forgot Password Feature
 
-### What Was Causing NOT_FOUND on Vercel
+## Supabase Dashboard URLs (You Must Add These)
 
-The core issue is that Vercel treats every URL as a request for a real file on the server. Since this is a React SPA, only `index.html` physically exists — all other "pages" like `/farmers` or `/settings` are handled client-side by React Router. Without telling Vercel to redirect everything to `index.html`, refreshing or directly visiting any route returned a 404.
+Go to your Supabase project → **Authentication** → **URL Configuration** → **Redirect URLs** and add both of these:
 
-The `vercel.json` file was just created with the correct rewrite rule. That fixes the primary issue. However, the audit found two additional problems that will still cause broken behavior after deployment:
+```
+https://dairy-daily-command.vercel.app/reset-password
+https://id-preview--42dc2dbb-d739-47e8-a719-e2b549f43fe7.lovable.app/reset-password
+```
 
----
-
-### Additional Issue 1 — Two pages exist but have NO registered routes
-
-Comparing `src/pages/` files against `App.tsx` routes:
-
-| Page File | Route in App.tsx |
-|---|---|
-| `SettlementList.tsx` | MISSING |
-| `SettlementDetail.tsx` | MISSING |
-| `ApplicationPending.tsx` | Not a route (it's a component rendered inline) — OK |
-
-`SettlementList.tsx` navigates internally to `/settlements/:id` (line 93 of that file), meaning links inside the app point to routes that don't exist in the router. Clicking a settlement card or navigating to `/settlements` would hit the `*` catch-all and render `NotFound`.
-
-### Additional Issue 2 — Missing `SettlementDetail` route
-
-`SettlementList.tsx` calls `navigate('/settlements/${openSettlement.id}')` — so `SettlementDetail` must also be registered.
+Add both so the flow works on your live Vercel deployment AND in the Lovable preview.
 
 ---
 
-### What Will Be Changed
+## Files to Create / Modify
 
-**`src/App.tsx`** — Add the two missing routes:
+### 1. `src/pages/Auth.tsx` — Add Forgot Password view
+
+A new `isForgotPassword` state is added. When the user clicks "Forgot Password?", the form switches to an email-only screen. On submit it calls:
+
+```typescript
+await supabase.auth.resetPasswordForEmail(email, {
+  redirectTo: `${window.location.origin}/reset-password`
+});
+```
+
+After sending, a green success screen shows "Check your email for the reset link."
+
+The three form states inside `Auth.tsx`:
+- Login form
+- Register / Become a Partner form  
+- Forgot Password form (new)
+
+A "Forgot password?" link will appear below the password field on the login form only.
+
+### 2. `src/pages/ResetPassword.tsx` — New page
+
+This page handles users arriving from the email link. Supabase appends `#access_token=...&type=recovery` to the URL hash.
+
+The page will:
+- Listen for the Supabase `PASSWORD_RECOVERY` auth event via `onAuthStateChange`
+- Show a "Set New Password" form with a new password + confirm password field
+- Call `supabase.auth.updateUser({ password: newPassword })` on submit
+- Redirect to `/auth` after success
+- Show an error + link back to login if the token is missing or expired
+
+### 3. `src/App.tsx` — Register the public route
+
+Add a single public (non-protected) route:
+
 ```tsx
-import SettlementList from "./pages/SettlementList";
-import SettlementDetail from "./pages/SettlementDetail";
+import ResetPassword from "./pages/ResetPassword";
 
-// Inside <Routes>:
-<Route path="/settlements" element={<ProtectedRoute><SettlementList /></ProtectedRoute>} />
-<Route path="/settlements/:id" element={<ProtectedRoute><SettlementDetail /></ProtectedRoute>} />
+<Route path="/reset-password" element={<ResetPassword />} />
+```
+
+This must be outside `ProtectedRoute` because the user arrives unauthenticated.
+
+---
+
+## User Flow
+
+```text
+Login Page  
+   │  
+   └─ "Forgot password?" link (below password field)  
+          │  
+          ▼  
+   Forgot Password Screen  
+   [Enter email] → "Send Reset Link"  
+          │  
+          ▼  
+   Supabase sends email  
+          │  
+          ▼  
+   User clicks email link → lands on /reset-password  
+   [Enter new password] → "Update Password"  
+          │  
+          ▼  
+   Success → redirect to /auth (login)
 ```
 
 ---
 
-### Summary of All Changes
+## Summary
 
-| # | File | What | Why |
-|---|---|---|---|
-| 1 | `vercel.json` | Already created — rewrites all routes to `index.html` | Fixes NOT_FOUND on refresh/direct access |
-| 2 | `src/App.tsx` | Add `/settlements` and `/settlements/:id` routes | Fixes broken internal navigation to settlement pages |
+| File | Action | Purpose |
+|---|---|---|
+| `src/pages/Auth.tsx` | Modify | Add forgot password state, form, and success screen |
+| `src/pages/ResetPassword.tsx` | Create | New page to set a new password from the email link |
+| `src/App.tsx` | Modify | Register `/reset-password` as a public route |
 
-### Everything Else — Already Correct
+No database changes required — Supabase handles password reset natively.
 
-| Item | Status |
-|---|---|
-| Supabase URL & anon key | Hardcoded correctly in `client.ts` — no env var issues |
-| Vite build output | Default `dist/` — Vercel auto-detects this, no config needed |
-| All other page files | Every file in `src/pages/` has a matching route in `App.tsx` |
-| `public/_redirects` | Stays in place — handles Lovable preview, does not conflict with Vercel |
-| React Router using `BrowserRouter` | Correct — works perfectly with Vercel rewrites |
-| Cache headers | Already set correctly in `vercel.json` |
+---
 
-After these changes, every route in the app — including `/settlements`, `/farmers/:id`, `/settings` — will work on Vercel whether navigated to via a link, refreshed, or opened directly from a bookmark.
+## Links to Add in Supabase
+
+**Authentication → URL Configuration → Redirect URLs:**
+
+1. `https://dairy-daily-command.vercel.app/reset-password`
+2. `https://id-preview--42dc2dbb-d739-47e8-a719-e2b549f43fe7.lovable.app/reset-password`
