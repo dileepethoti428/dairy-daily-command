@@ -18,12 +18,16 @@ import {
   calculateRate,
   PricingMode,
 } from '@/hooks/usePricingFormula';
-import { Calculator, Loader2, Info } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Calculator, Loader2, Info, Globe, Building2 } from 'lucide-react';
 
-export function PricingFormulaCard() {
-  const { data: formula, isLoading } = usePricingFormula();
-  const updateFormula = useUpdatePricingFormula();
+interface PricingFormulaCardProps {
+  centerId?: string | null;
+  centerName?: string | null;
+}
+
+export function PricingFormulaCard({ centerId, centerName }: PricingFormulaCardProps) {
+  const { data: formula, isLoading } = usePricingFormula(centerId);
+  const updateFormula = useUpdatePricingFormula(centerId);
 
   const [fatMultiplier, setFatMultiplier] = useState<string>('6');
   const [snfMultiplier, setSnfMultiplier] = useState<string>('2');
@@ -45,9 +49,7 @@ export function PricingFormulaCard() {
     }
   }, [formula]);
 
-  const handleChange = () => {
-    setHasChanges(true);
-  };
+  const handleChange = () => setHasChanges(true);
 
   const handleSave = async () => {
     await updateFormula.mutateAsync({
@@ -62,7 +64,7 @@ export function PricingFormulaCard() {
   // Calculate preview rate
   const previewFormula = {
     id: '',
-    collection_center_id: null,
+    collection_center_id: centerId ?? null,
     fat_multiplier: parseFloat(fatMultiplier) || 0,
     snf_multiplier: parseFloat(snfMultiplier) || 0,
     constant_value: parseFloat(constantValue) || 0,
@@ -92,15 +94,30 @@ export function PricingFormulaCard() {
     );
   }
 
+  const isGlobal = !centerId;
+
   return (
     <Card className="shadow-dairy">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <Calculator className="h-5 w-5 text-primary" />
           Pricing Formula
+          {isGlobal ? (
+            <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground ml-auto">
+              <Globe className="h-3.5 w-3.5" />
+              Global
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground ml-auto">
+              <Building2 className="h-3.5 w-3.5" />
+              {centerName || 'This Center'}
+            </span>
+          )}
         </CardTitle>
         <CardDescription>
-          Configure the milk rate calculation formula
+          {isGlobal
+            ? 'Default formula used by all centers without a custom formula'
+            : `Custom milk rate formula for ${centerName || 'this center'}`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -121,10 +138,7 @@ export function PricingFormulaCard() {
               type="number"
               step="0.01"
               value={fatMultiplier}
-              onChange={(e) => {
-                setFatMultiplier(e.target.value);
-                handleChange();
-              }}
+              onChange={(e) => { setFatMultiplier(e.target.value); handleChange(); }}
               className="h-12 text-lg font-medium text-center"
             />
           </div>
@@ -135,10 +149,7 @@ export function PricingFormulaCard() {
               type="number"
               step="0.01"
               value={snfMultiplier}
-              onChange={(e) => {
-                setSnfMultiplier(e.target.value);
-                handleChange();
-              }}
+              onChange={(e) => { setSnfMultiplier(e.target.value); handleChange(); }}
               className="h-12 text-lg font-medium text-center"
             />
           </div>
@@ -149,10 +160,7 @@ export function PricingFormulaCard() {
               type="number"
               step="0.01"
               value={constantValue}
-              onChange={(e) => {
-                setConstantValue(e.target.value);
-                handleChange();
-              }}
+              onChange={(e) => { setConstantValue(e.target.value); handleChange(); }}
               className="h-12 text-lg font-medium text-center"
             />
           </div>
@@ -163,10 +171,7 @@ export function PricingFormulaCard() {
           <Label htmlFor="mode">Pricing Mode</Label>
           <Select
             value={mode}
-            onValueChange={(value: PricingMode) => {
-              setMode(value);
-              handleChange();
-            }}
+            onValueChange={(value: PricingMode) => { setMode(value); handleChange(); }}
           >
             <SelectTrigger id="mode" className="h-12">
               <SelectValue placeholder="Select mode" />

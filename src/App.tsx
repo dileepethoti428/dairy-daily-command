@@ -27,6 +27,7 @@ import CenterDetail from "./pages/CenterDetail";
 import CenterEdit from "./pages/CenterEdit";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
+import PartnerApprovals from "./pages/PartnerApprovals";
 
 const queryClient = new QueryClient();
 
@@ -166,6 +167,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <MilkEntryEdit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/partner-approvals"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <PartnerApprovals />
                     </ProtectedRoute>
                   }
                 />

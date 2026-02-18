@@ -22,10 +22,11 @@ import {
   HelpCircle,
   FileText,
   ChevronRight,
-  MessageCircle,
   Mail,
   Phone,
+  Users,
 } from 'lucide-react';
+import { PricingFormulaCard } from '@/components/settings/PricingFormulaCard';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
@@ -307,6 +308,12 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Pricing Formula — visible to all authenticated users */}
+        <PricingFormulaCard
+          centerId={selectedCenter?.id ?? null}
+          centerName={selectedCenter?.name ?? null}
+        />
+
         {/* Admin Section */}
         {isAdmin && (
           <>
@@ -337,6 +344,14 @@ export default function Settings() {
                 >
                   <Building2 className="mr-3 h-5 w-5" />
                   Collection Centers
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start h-12"
+                  onClick={() => navigate('/partner-approvals')}
+                >
+                  <Users className="mr-3 h-5 w-5" />
+                  Partner Approvals
                 </Button>
               </CardContent>
             </Card>

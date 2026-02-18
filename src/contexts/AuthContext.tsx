@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import type { ApplicationStatus } from '@/hooks/usePartnerApplications';
 
-export type AppRole = 'admin' | 'staff';
+export type AppRole = 'admin' | 'staff' | 'user';
 
 interface AuthContextType {
   user: User | null;
@@ -11,6 +12,8 @@ interface AuthContextType {
   userRole: AppRole;
   isAdmin: boolean;
   isStaff: boolean;
+  applicationStatus: ApplicationStatus | null;
+  applicationRejectionReason: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -23,9 +26,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<AppRole>('staff');
+  const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus | null>(null);
+  const [applicationRejectionReason, setApplicationRejectionReason] = useState<string | null>(null);
 
   const isAdmin = userRole === 'admin';
-  const isStaff = userRole === 'staff';
+  const isStaff = userRole === 'staff' || userRole === 'user';
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -34,13 +39,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer role fetching with setTimeout to avoid deadlock
         if (session?.user) {
           setTimeout(() => {
             fetchUserRole(session.user.id);
+            fetchApplicationStatus(session.user.id);
           }, 0);
         } else {
           setUserRole('staff');
+          setApplicationStatus(null);
+          setApplicationRejectionReason(null);
         }
         
         setLoading(false);
@@ -54,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (session?.user) {
         fetchUserRole(session.user.id);
+        fetchApplicationStatus(session.user.id);
       }
       
       setLoading(false);
@@ -76,12 +84,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Default to 'staff' if no role found or role is not admin
       const role = data?.role as AppRole;
-      setUserRole(role === 'admin' ? 'admin' : 'staff');
+      setUserRole(role === 'admin' ? 'admin' : role === 'user' ? 'user' : 'staff');
     } catch (err) {
       console.error('Error fetching user role:', err);
       setUserRole('staff');
+    }
+  };
+
+  const fetchApplicationStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('dairy_partner_applications')
+        .select('status, rejection_reason')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching application status:', error);
+        return;
+      }
+
+      if (data) {
+        setApplicationStatus(data.status as ApplicationStatus);
+        setApplicationRejectionReason(data.rejection_reason ?? null);
+      } else {
+        setApplicationStatus(null);
+        setApplicationRejectionReason(null);
+      }
+    } catch (err) {
+      console.error('Error fetching application status:', err);
     }
   };
 
@@ -116,6 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setUserRole('staff');
+    setApplicationStatus(null);
+    setApplicationRejectionReason(null);
   };
 
   return (
@@ -126,6 +160,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userRole, 
       isAdmin, 
       isStaff,
+      applicationStatus,
+      applicationRejectionReason,
       signIn, 
       signUp, 
       signOut 

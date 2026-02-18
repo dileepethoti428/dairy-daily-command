@@ -6,20 +6,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Milk, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Milk, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const phoneSchema = z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number');
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
+  const [applicationSubmitted, setApplicationSubmitted] = useState(false);
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    fullName?: string;
+    contactNumber?: string;
+  }>({});
 
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -34,27 +43,65 @@ export default function Auth() {
     return null;
   }
 
+  // Show submitted screen after sign-up
+  if (applicationSubmitted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
+        <Card className="w-full max-w-md shadow-dairy text-center">
+          <CardHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+              <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <CardTitle className="text-xl">Application Submitted!</CardTitle>
+            <CardDescription className="text-base mt-2">
+              Your application has been received. An admin will review it shortly.
+              Once approved, you can log in with your credentials.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              className="w-full h-12"
+              variant="outline"
+              onClick={() => {
+                setApplicationSubmitted(false);
+                setIsLogin(true);
+                setEmail('');
+                setPassword('');
+                setFullName('');
+                setContactNumber('');
+              }}
+            >
+              Back to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const validateForm = () => {
-    const newErrors: { email?: string; password?: string; fullName?: string } = {};
+    const newErrors: typeof errors = {};
 
     try {
       emailSchema.parse(email);
     } catch (e) {
-      if (e instanceof z.ZodError) {
-        newErrors.email = e.errors[0].message;
-      }
+      if (e instanceof z.ZodError) newErrors.email = e.errors[0].message;
     }
 
     try {
       passwordSchema.parse(password);
     } catch (e) {
-      if (e instanceof z.ZodError) {
-        newErrors.password = e.errors[0].message;
-      }
+      if (e instanceof z.ZodError) newErrors.password = e.errors[0].message;
     }
 
-    if (!isLogin && !fullName.trim()) {
-      newErrors.fullName = 'Please enter your full name';
+    if (!isLogin) {
+      if (!fullName.trim()) newErrors.fullName = 'Please enter your full name';
+
+      try {
+        phoneSchema.parse(contactNumber.replace(/\s/g, ''));
+      } catch (e) {
+        if (e instanceof z.ZodError) newErrors.contactNumber = e.errors[0].message;
+      }
     }
 
     setErrors(newErrors);
@@ -64,9 +111,7 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
 
@@ -74,49 +119,52 @@ export default function Auth() {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            toast({
-              title: 'Login failed',
-              description: 'Invalid email or password. Please try again.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'Login failed',
-              description: error.message,
-              variant: 'destructive',
-            });
-          }
-        } else {
           toast({
-            title: 'Welcome back!',
-            description: 'You have successfully logged in.',
+            title: 'Login failed',
+            description: error.message.includes('Invalid login credentials')
+              ? 'Invalid email or password. Please try again.'
+              : error.message,
+            variant: 'destructive',
           });
+        } else {
+          toast({ title: 'Welcome back!', description: 'You have successfully logged in.' });
           navigate(from, { replace: true });
         }
       } else {
+        // Sign up
         const { error } = await signUp(email, password, fullName);
         if (error) {
-          if (error.message.includes('already registered')) {
-            toast({
-              title: 'Account exists',
-              description: 'This email is already registered. Please log in instead.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'Sign up failed',
-              description: error.message,
-              variant: 'destructive',
-            });
-          }
-        } else {
           toast({
-            title: 'Account created!',
-            description: 'You can now log in with your credentials.',
+            title: error.message.includes('already registered') ? 'Account exists' : 'Sign up failed',
+            description: error.message.includes('already registered')
+              ? 'This email is already registered. Please log in instead.'
+              : error.message,
+            variant: 'destructive',
           });
-          setIsLogin(true);
+          return;
         }
+
+        // Get the newly created user session
+        const { data: { user: newUser } } = await supabase.auth.getUser();
+
+        if (newUser) {
+          // Submit partner application
+          const { error: appError } = await supabase
+            .from('dairy_partner_applications')
+            .insert({
+              user_id: newUser.id,
+              full_name: fullName,
+              contact_number: contactNumber,
+              email: email,
+              status: 'pending',
+            });
+
+          if (appError) {
+            console.error('Error submitting application:', appError);
+          }
+        }
+
+        setApplicationSubmitted(true);
       }
     } catch (err) {
       toast({
@@ -137,32 +185,51 @@ export default function Auth() {
             <Milk className="h-8 w-8 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl font-semibold">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {isLogin ? 'Welcome Back' : 'Become a Partner'}
           </CardTitle>
           <CardDescription>
             {isLogin
               ? 'Sign in to access your milk collection center'
-              : 'Register to start managing milk collections'}
+              : 'Register as a collection partner. Your application will be reviewed by an admin.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="h-12"
-                  disabled={loading}
-                />
-                {errors.fullName && (
-                  <p className="text-sm text-destructive">{errors.fullName}</p>
-                )}
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="h-12"
+                    disabled={loading}
+                  />
+                  {errors.fullName && (
+                    <p className="text-sm text-destructive">{errors.fullName}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contactNumber">Contact Number</Label>
+                  <Input
+                    id="contactNumber"
+                    type="tel"
+                    placeholder="10-digit mobile number"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    className="h-12"
+                    disabled={loading}
+                    maxLength={10}
+                  />
+                  {errors.contactNumber && (
+                    <p className="text-sm text-destructive">{errors.contactNumber}</p>
+                  )}
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
@@ -215,10 +282,10 @@ export default function Auth() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  {isLogin ? 'Signing in...' : 'Creating account...'}
+                  {isLogin ? 'Signing in...' : 'Submitting application...'}
                 </>
               ) : (
-                <>{isLogin ? 'Sign In' : 'Create Account'}</>
+                <>{isLogin ? 'Sign In' : 'Submit Application'}</>
               )}
             </Button>
           </form>
@@ -234,7 +301,7 @@ export default function Auth() {
               disabled={loading}
             >
               {isLogin
-                ? "Don't have an account? Sign up"
+                ? "Don't have an account? Register as Partner"
                 : 'Already have an account? Sign in'}
             </button>
           </div>

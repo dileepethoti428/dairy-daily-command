@@ -74,19 +74,20 @@ export function getRateBreakdown(
   };
 }
 
-// Fetch pricing formula for current center (or global)
-export function usePricingFormula() {
+// Fetch pricing formula — for a specific center or global fallback
+export function usePricingFormula(centerId?: string | null) {
   const { selectedCenter } = useCenter();
+  const effectiveCenterId = centerId !== undefined ? centerId : selectedCenter?.id;
   
   return useQuery({
-    queryKey: ['pricing-formula', selectedCenter?.id],
+    queryKey: ['pricing-formula', effectiveCenterId],
     queryFn: async () => {
       // First try to get center-specific formula
-      if (selectedCenter?.id) {
+      if (effectiveCenterId) {
         const { data: centerFormula, error: centerError } = await supabase
           .from('pricing_formula')
           .select('*')
-          .eq('collection_center_id', selectedCenter.id)
+          .eq('collection_center_id', effectiveCenterId)
           .eq('is_active', true)
           .maybeSingle();
         
@@ -108,21 +109,28 @@ export function usePricingFormula() {
   });
 }
 
-// Update or create pricing formula
-export function useUpdatePricingFormula() {
+// Update or create pricing formula for a specific center (or global if no centerId)
+export function useUpdatePricingFormula(centerId?: string | null) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { selectedCenter } = useCenter();
 
   return useMutation({
     mutationFn: async (input: PricingFormulaInput) => {
-      // Try to update existing global formula first
-      const { data: existingFormula } = await supabase
+      const targetCenterId = centerId ?? null;
+
+      // Try to find existing formula for this center (or global)
+      let existingQuery = supabase
         .from('pricing_formula')
         .select('id')
-        .is('collection_center_id', null)
-        .eq('is_active', true)
-        .maybeSingle();
+        .eq('is_active', true);
+
+      if (targetCenterId) {
+        existingQuery = existingQuery.eq('collection_center_id', targetCenterId);
+      } else {
+        existingQuery = existingQuery.is('collection_center_id', null);
+      }
+
+      const { data: existingFormula } = await existingQuery.maybeSingle();
       
       if (existingFormula) {
         // Update existing
@@ -141,11 +149,11 @@ export function useUpdatePricingFormula() {
         if (error) throw error;
         return data;
       } else {
-        // Create new
+        // Create new formula for this center
         const { data, error } = await supabase
           .from('pricing_formula')
           .insert({
-            collection_center_id: null, // Global formula
+            collection_center_id: targetCenterId,
             fat_multiplier: input.fat_multiplier,
             snf_multiplier: input.snf_multiplier,
             constant_value: input.constant_value,
@@ -163,7 +171,9 @@ export function useUpdatePricingFormula() {
       queryClient.invalidateQueries({ queryKey: ['pricing-formula'] });
       toast({
         title: 'Pricing Formula Updated',
-        description: 'The pricing formula has been saved.',
+        description: centerId
+          ? 'The pricing formula for this center has been saved.'
+          : 'The global pricing formula has been saved.',
       });
     },
     onError: (error: Error) => {
