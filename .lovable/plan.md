@@ -1,197 +1,102 @@
 
-# Fix: Per-Center Pricing Formula Isolation
+# Fix: Partner Pricing Formula Not Persisting Across Navigation / Sign-in
 
-## The Problem
+## Root Cause — Confirmed via Database
 
-Currently there are two types of formula rows in the `pricing_formula` table:
-- **Global** (`collection_center_id = null`) — the admin's default
-- **Center-specific** (`collection_center_id = <id>`) — per-center overrides
+Querying the `pricing_formula` table shows only **2 rows**:
+1. Global formula (`collection_center_id = null`)
+2. A formula for center `56062f6b` (an unrelated center)
 
-The bug is in the **read path** of `usePricingFormula`:
+The ZAAGO-123 center (`3a1d1b79`) — which is the partner's center — has **no center-specific formula row**. This means:
 
-```
-1. Try to fetch center-specific formula for this center
-2. If none found → fall back to the GLOBAL formula
-```
+- Every time the partner opens Settings, `usePricingFormula` falls back to the global formula (since no center-specific row exists)
+- `useEnsureCenterFormula` runs and tries to INSERT a row for the partner's center, but this INSERT is **failing silently** — the error is caught but not surfaced
+- When the partner edits values and presses "Save Formula", `useUpdatePricingFormula` also tries to find an existing row for the center — finds none — and tries to INSERT, which may also fail due to RLS
+- The result: values always revert to global on page refresh / navigation
 
-So when a partner who has NO center-specific formula opens Settings, they see the **global** values. When they edit and save, the hook correctly writes a NEW center-specific row. This part works.
+## Why the INSERT is Failing
 
-**But the remaining problems are:**
+The RLS policy added earlier allows partners to INSERT for their assigned center. However, there is a subtle issue with how `useEnsureCenterFormula` reads the global formula: it uses `select('*')` which **includes the `id` column** from the global row. If the INSERT accidentally includes `id` (it doesn't here), it would fail. But the real issue is likely a **race condition** or the RLS `WITH CHECK` clause not matching during the auto-initialization.
 
-**Problem A — Admin overwrites partner data:** When the admin changes the global formula and a center has NOT yet saved their own formula, the partner sees the admin's changed values. Since the hook falls back to global, the partner is always seeing the admin's data until they save once.
+The more likely culprit: the RLS `USING` clause on the `pricing_formula` table for partners requires the row to have a `collection_center_id` that matches an assignment for `auth.uid()`. The global formula has `collection_center_id = null`, so partners **cannot read the global formula** through the existing policies. This means `useEnsureCenterFormula` fetches global with `select('*')` but gets `null` back (because the partner can't see global-scope rows), then inserts with all defaults — but this INSERT may still fail because the policy isn't granting INSERT when reading fails first.
 
-**Problem B — Partner has no idea if they're seeing inherited or their own values:** There is no indication in the UI whether the currently shown formula belongs to the center or is inherited from global.
+The actual fix needed is:
 
-**Problem C — No auto-isolation:** Partners should have their own formula from the start, not share the global one silently.
+**1. The existing RLS policy for partners should also allow them to READ the global formula** (so they can copy it). Currently, the only SELECT policy visible is the admin one.
 
----
+**2. A safer fallback**: in `useEnsureCenterFormula`, if the global formula fetch returns `null`, use hardcoded defaults (which it already does), so this should work regardless.
 
-## The Fix
+**3. The real missing piece**: there is likely **no SELECT RLS policy for partners** on `pricing_formula` for their center-specific rows. Without a SELECT policy, after they INSERT their formula row, they can't READ it back — so `usePricingFormula` always falls through to the global formula fetch, which they also can't read → returns `null` → falls back to showing defaults.
 
-### Strategy: Auto-create a center-specific formula on first load for partners
+## The Correct Fix
 
-When a partner opens Settings and there is no center-specific formula yet, **automatically copy the global formula into a center-specific row** for their center. This creates full isolation immediately — once this happens, admin changes to global will NEVER affect that center again.
+### Step 1 — Database Migration: Add proper RLS SELECT policy for partners
 
-This approach means:
-- Partners always see and edit THEIR OWN formula (never the global one)
-- Admin changes to global don't affect any center that has already customized (or been auto-initialized)
-- No database schema changes needed
+Two policies need to exist for partners on `pricing_formula`:
 
----
+```sql
+-- 1. Partners can READ their own center's formula
+CREATE POLICY "Partners can read their center formula"
+ON public.pricing_formula
+FOR SELECT
+TO authenticated
+USING (
+  collection_center_id IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM public.user_center_assignments
+    WHERE user_center_assignments.center_id = pricing_formula.collection_center_id
+    AND user_center_assignments.user_id = auth.uid()
+  )
+);
 
-## Implementation
-
-### File 1: `src/hooks/usePricingFormula.ts`
-
-Add a new `useEnsureCenterFormula` hook that auto-initializes a center-specific formula by copying from global if none exists.
-
-Also add a helper to detect whether the formula being shown is "inherited" (global) vs. "own":
-
-```typescript
-export function useEnsureCenterFormula(centerId: string | null | undefined) {
-  // When centerId is provided and no center-specific formula exists,
-  // copy the global formula into a new center-specific row silently.
-  // This runs once on mount if the center has no formula of its own.
-}
-```
-
-The read hook `usePricingFormula` should also return a flag `isInherited: boolean` indicating whether the result came from the global fallback.
-
-### File 2: `src/components/settings/PricingFormulaCard.tsx`
-
-1. Call `useEnsureCenterFormula(centerId)` so that when a partner opens settings, their center gets its own formula row silently (copied from global).
-2. Show a subtle informational notice when the formula was just initialized from the global template.
-3. Show a clear label: "Your Center's Formula" (not "Global").
-
-### File 3: `src/pages/Settings.tsx`
-
-For **admins**, show two separate sections:
-- The **Global Formula** card (no centerId) — clearly labelled as the default for centers without custom formulas
-- Optionally indicate that changing global won't affect centers that already have their own formula
-
-For **partners/staff**, only show their own center formula (current behavior, but now always isolated).
-
----
-
-## Detailed Technical Steps
-
-### Step 1 — Update `usePricingFormula` to return `isInherited`
-
-Change the return type to include `isInherited`:
-
-```typescript
-export function usePricingFormula(centerId?: string | null) {
-  return useQuery({
-    queryKey: ['pricing-formula', effectiveCenterId],
-    queryFn: async () => {
-      if (effectiveCenterId) {
-        const { data: centerFormula } = await supabase
-          .from('pricing_formula')
-          .select('*')
-          .eq('collection_center_id', effectiveCenterId)
-          .eq('is_active', true)
-          .maybeSingle();
-        
-        if (centerFormula) return { formula: centerFormula, isInherited: false };
-      }
-      
-      // Global fallback
-      const { data: globalFormula } = await supabase
-        .from('pricing_formula')
-        .select('*')
-        .is('collection_center_id', null)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      return { formula: globalFormula ?? null, isInherited: true };
-    },
-  });
-}
+-- 2. Partners can also read the global formula (for copying defaults)
+CREATE POLICY "All authenticated users can read global formula"
+ON public.pricing_formula
+FOR SELECT
+TO authenticated
+USING (
+  collection_center_id IS NULL
+);
 ```
 
-### Step 2 — Add `useEnsureCenterFormula` hook
+The existing `"Partners can manage their center formula"` policy uses `FOR ALL` — but in Postgres RLS, `FOR ALL` does NOT automatically cover `FOR SELECT`. SELECT policies are evaluated separately. This is the core bug.
 
-This hook auto-creates a center-specific formula row (by copying global) when a partner's center has no formula yet:
+### Step 2 — Fix `useEnsureCenterFormula` to handle errors visibly
 
-```typescript
-export function useEnsureCenterFormula(centerId: string | null | undefined) {
-  const queryClient = useQueryClient();
-  
-  useEffect(() => {
-    if (!centerId) return;
-    
-    async function ensureFormula() {
-      // Check if center-specific formula exists
-      const { data: existing } = await supabase
-        .from('pricing_formula')
-        .select('id')
-        .eq('collection_center_id', centerId)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (existing) return; // already has own formula
-      
-      // Get global formula to copy from
-      const { data: global } = await supabase
-        .from('pricing_formula')
-        .select('*')
-        .is('collection_center_id', null)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      // Create center-specific formula (copy from global or use defaults)
-      await supabase
-        .from('pricing_formula')
-        .insert({
-          collection_center_id: centerId,
-          fat_multiplier: global?.fat_multiplier ?? 6,
-          snf_multiplier: global?.snf_multiplier ?? 2,
-          constant_value: global?.constant_value ?? 6.8,
-          mode: global?.mode ?? 'hybrid',
-          is_active: true,
-        });
-      
-      // Refresh the formula query
-      queryClient.invalidateQueries({ queryKey: ['pricing-formula', centerId] });
-    }
-    
-    ensureFormula();
-  }, [centerId]);
-}
-```
+The hook silently ignores INSERT errors. It should log or handle them so we can debug in the future. More importantly, after successfully inserting, it should wait a tick before invalidating the query to avoid race conditions.
 
-### Step 3 — Update `PricingFormulaCard.tsx`
+### Step 3 — Fix `useUpdatePricingFormula` to be resilient
 
-- Call `useEnsureCenterFormula(centerId)` at the top
-- Update to read `{ data }` where `data` now has `{ formula, isInherited }` shape
-- Show an info banner when `isInherited` is true: "This formula was copied from the global default. You can now customize it for your center."
-- After `useEnsureCenterFormula` runs, `isInherited` will quickly flip to `false` as the center gets its own row
+Currently when finding an existing formula, it only searches by `is_active = true`. If the auto-ensure hook hasn't run yet, the save will try to INSERT a new row. We should ensure the INSERT in `useUpdatePricingFormula` always uses `centerId` (not `null`) for partners.
 
-### Step 4 — Update `Settings.tsx` for admin view
+## Summary of Changes
 
-Add a note under the admin's Global Formula card:
-- "Changes here only affect centers that do not have their own custom formula."
+### Database Migration (critical fix)
 
-Show the global formula card with `centerId={null}` for admins, making it explicit this is the global default.
+Add two SELECT policies to `pricing_formula`:
+- Partners can SELECT rows where `collection_center_id` matches their assigned center
+- All authenticated users can SELECT the global formula (`collection_center_id IS NULL`)
 
-For partners, pass their `selectedCenter?.id` as before (existing behavior, now always isolated).
+The previously added `FOR ALL` policy only covers INSERT/UPDATE/DELETE write operations for partners, NOT SELECT.
 
----
+### `src/hooks/usePricingFormula.ts` — Minor improvements
 
-## Result After Fix
+- In `useEnsureCenterFormula`: log errors to console so failures are visible during development
+- Add a small delay before query invalidation to avoid race conditions after INSERT
 
-| Scenario | Before Fix | After Fix |
-|---|---|---|
-| Partner opens Settings for first time | Sees global formula | Auto-copies global → now has own formula |
-| Partner saves formula | Saves center-specific row | Same, but now guaranteed to be own row |
-| Admin changes global formula | Affects ALL centers without custom formula (including partners who haven't saved yet) | Only affects centers with no formula at all (all active partner centers are auto-initialized) |
-| Two partners from different centers | Could share same global values | Each center has its own independent row |
-| Partner A saves, Partner B doesn't | Partner B still sees global | Partner B also auto-gets their own copy |
-
-## Files Modified
+## Files to Modify
 
 | File | Change |
 |---|---|
-| `src/hooks/usePricingFormula.ts` | Update return shape to include `isInherited`, add `useEnsureCenterFormula` hook |
-| `src/components/settings/PricingFormulaCard.tsx` | Use new hook and `isInherited` flag, show info banner, update data destructuring |
-| `src/pages/Settings.tsx` | Add note for admin that global formula only affects centers without custom formula |
+| New migration | Add 2 SELECT RLS policies on `pricing_formula` for partner read access |
+| `src/hooks/usePricingFormula.ts` | Improve error handling in `useEnsureCenterFormula` |
+
+## Why This Will Work
+
+Once the SELECT policies are added:
+1. Partner opens Settings → `usePricingFormula` queries for `center_id = ZAAGO-123` → no row found → `useEnsureCenterFormula` runs INSERT → succeeds → query invalidates → refetch now finds center-specific row → partner sees their own formula
+2. Partner edits values → saves → `useUpdatePricingFormula` finds center-specific row → updates it → partner sees updated values
+3. Partner navigates away and back → React Query refetches → finds center-specific row → shows partner's saved values (NOT global)
+4. Admin changes global → has no effect on the center-specific row for this partner
+
+The partner's values will now correctly persist across page navigation and sign-in/sign-out.
