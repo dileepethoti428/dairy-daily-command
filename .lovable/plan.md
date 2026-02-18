@@ -1,104 +1,89 @@
 
-# Add Forgot Password Feature
+# Fix: Reset Password Page Not Detecting Recovery Session
 
-## Supabase Dashboard URLs (You Must Add These)
+## Root Cause
 
-Go to your Supabase project → **Authentication** → **URL Configuration** → **Redirect URLs** and add both of these:
+There are two bugs causing "Link Expired or Invalid" to show even when the link is valid:
 
+### Bug 1 — Supabase PKCE flow sends a `?code=` query param, not a hash fragment
+
+The current code checks:
+```typescript
+if (hash.includes('type=recovery')) { ... }
 ```
-https://dairy-daily-command.vercel.app/reset-password
-https://id-preview--42dc2dbb-d739-47e8-a719-e2b549f43fe7.lovable.app/reset-password
+
+But with PKCE (the modern Supabase default), the email link looks like:
+```
+https://dairy-daily-command.vercel.app/reset-password?code=abc123
 ```
 
-Add both so the flow works on your live Vercel deployment AND in the Lovable preview.
+There is NO `#type=recovery` in the URL anymore. Supabase auto-exchanges the `code` for a session silently. The hash check always fails, so the component shows the "Link Expired" error screen.
+
+### Bug 2 — The `PASSWORD_RECOVERY` event fires in `AuthContext`, not in `ResetPassword`
+
+`AuthContext` has a global `onAuthStateChange` listener that is already active when the user lands on `/reset-password`. When Supabase fires `PASSWORD_RECOVERY`, `AuthContext` catches it first. By the time `ResetPassword.tsx` mounts and registers its own listener, the event has already been consumed and will never fire again.
 
 ---
 
-## Files to Create / Modify
+## The Fix — `src/pages/ResetPassword.tsx`
 
-### 1. `src/pages/Auth.tsx` — Add Forgot Password view
+Replace the broken event-listening approach with a direct session check using `supabase.auth.getSession()`.
 
-A new `isForgotPassword` state is added. When the user clicks "Forgot Password?", the form switches to an email-only screen. On submit it calls:
+When a user clicks a valid reset link, Supabase automatically exchanges the code in the URL for a real session. The session object contains `session.user.aud` and the user will have an active authenticated session. We just need to:
+
+1. Call `supabase.auth.getSession()` on mount
+2. If a session exists → show the password reset form (the user came from a valid link)
+3. If no session exists → show the "Link Expired or Invalid" error
+
+Also check for a `?code=` query parameter as an additional early indicator that Supabase is processing a recovery flow.
+
+### The new detection logic:
 
 ```typescript
-await supabase.auth.resetPasswordForEmail(email, {
-  redirectTo: `${window.location.origin}/reset-password`
-});
-```
+useEffect(() => {
+  const checkSession = async () => {
+    // Check for PKCE code in query params (modern Supabase flow)
+    const params = new URLSearchParams(window.location.search);
+    const hasCode = params.has('code');
+    
+    // Also check legacy hash-based flow
+    const hash = window.location.hash;
+    const hasHashRecovery = hash.includes('type=recovery');
 
-After sending, a green success screen shows "Check your email for the reset link."
+    if (hasHashRecovery) {
+      setIsRecoverySession(true);
+      setChecking(false);
+      return;
+    }
 
-The three form states inside `Auth.tsx`:
-- Login form
-- Register / Become a Partner form  
-- Forgot Password form (new)
+    // For PKCE flow: wait for Supabase to exchange the code, then check session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setIsRecoverySession(true);
+    }
+    setChecking(false);
+  };
 
-A "Forgot password?" link will appear below the password field on the login form only.
+  // Also listen for the event in case it hasn't fired yet
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      setIsRecoverySession(true);
+      setChecking(false);
+    }
+  });
 
-### 2. `src/pages/ResetPassword.tsx` — New page
+  checkSession();
 
-This page handles users arriving from the email link. Supabase appends `#access_token=...&type=recovery` to the URL hash.
-
-The page will:
-- Listen for the Supabase `PASSWORD_RECOVERY` auth event via `onAuthStateChange`
-- Show a "Set New Password" form with a new password + confirm password field
-- Call `supabase.auth.updateUser({ password: newPassword })` on submit
-- Redirect to `/auth` after success
-- Show an error + link back to login if the token is missing or expired
-
-### 3. `src/App.tsx` — Register the public route
-
-Add a single public (non-protected) route:
-
-```tsx
-import ResetPassword from "./pages/ResetPassword";
-
-<Route path="/reset-password" element={<ResetPassword />} />
-```
-
-This must be outside `ProtectedRoute` because the user arrives unauthenticated.
-
----
-
-## User Flow
-
-```text
-Login Page  
-   │  
-   └─ "Forgot password?" link (below password field)  
-          │  
-          ▼  
-   Forgot Password Screen  
-   [Enter email] → "Send Reset Link"  
-          │  
-          ▼  
-   Supabase sends email  
-          │  
-          ▼  
-   User clicks email link → lands on /reset-password  
-   [Enter new password] → "Update Password"  
-          │  
-          ▼  
-   Success → redirect to /auth (login)
+  return () => subscription.unsubscribe();
+}, []);
 ```
 
 ---
 
-## Summary
+## Summary of Changes
 
-| File | Action | Purpose |
-|---|---|---|
-| `src/pages/Auth.tsx` | Modify | Add forgot password state, form, and success screen |
-| `src/pages/ResetPassword.tsx` | Create | New page to set a new password from the email link |
-| `src/App.tsx` | Modify | Register `/reset-password` as a public route |
+| File | Change |
+|---|---|
+| `src/pages/ResetPassword.tsx` | Replace hash-only detection with `getSession()` check + query param detection + keep event listener as fallback |
 
-No database changes required — Supabase handles password reset natively.
-
----
-
-## Links to Add in Supabase
-
-**Authentication → URL Configuration → Redirect URLs:**
-
-1. `https://dairy-daily-command.vercel.app/reset-password`
-2. `https://id-preview--42dc2dbb-d739-47e8-a719-e2b549f43fe7.lovable.app/reset-password`
+No Supabase dashboard changes needed — the redirect URLs you've already added are correct. This is purely a code fix.
