@@ -144,7 +144,7 @@ export function useUpdatePricingFormula(centerId?: string | null) {
           })
           .eq('id', existingFormula.id)
           .select()
-          .single();
+          .maybeSingle();
         
         if (error) throw error;
         return data;
@@ -161,7 +161,7 @@ export function useUpdatePricingFormula(centerId?: string | null) {
             is_active: true,
           })
           .select()
-          .single();
+          .maybeSingle();
         
         if (error) throw error;
         return data;
