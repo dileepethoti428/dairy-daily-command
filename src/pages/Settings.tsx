@@ -308,11 +308,20 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Pricing Formula — visible to all authenticated users */}
-        <PricingFormulaCard
-          centerId={selectedCenter?.id ?? null}
-          centerName={selectedCenter?.name ?? null}
-        />
+        {/* Pricing Formula */}
+        {isAdmin ? (
+          /* Admin sees the Global Default formula clearly labelled */
+          <PricingFormulaCard
+            centerId={null}
+            centerName={null}
+          />
+        ) : (
+          /* Partners/Staff always see their own center's formula (auto-isolated) */
+          <PricingFormulaCard
+            centerId={selectedCenter?.id ?? null}
+            centerName={selectedCenter?.name ?? null}
+          />
+        )}
 
         {/* Admin Section */}
         {isAdmin && (

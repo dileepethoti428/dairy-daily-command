@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -75,6 +76,7 @@ export function getRateBreakdown(
 }
 
 // Fetch pricing formula — for a specific center or global fallback
+// Returns { formula, isInherited } where isInherited=true means it came from the global fallback
 export function usePricingFormula(centerId?: string | null) {
   const { selectedCenter } = useCenter();
   const effectiveCenterId = centerId !== undefined ? centerId : selectedCenter?.id;
@@ -92,7 +94,7 @@ export function usePricingFormula(centerId?: string | null) {
           .maybeSingle();
         
         if (centerError) throw centerError;
-        if (centerFormula) return centerFormula as PricingFormula;
+        if (centerFormula) return { formula: centerFormula as PricingFormula, isInherited: false };
       }
       
       // Fall back to global formula (null center_id)
@@ -104,9 +106,61 @@ export function usePricingFormula(centerId?: string | null) {
         .maybeSingle();
       
       if (globalError) throw globalError;
-      return globalFormula as PricingFormula | null;
+      return { formula: globalFormula as PricingFormula | null, isInherited: true };
     },
   });
+}
+
+/**
+ * Auto-creates a center-specific formula row by copying from global when a partner's
+ * center has no formula yet. This ensures full isolation — admin changes to global
+ * will never affect a center that has been auto-initialized.
+ */
+export function useEnsureCenterFormula(centerId: string | null | undefined) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!centerId) return;
+
+    async function ensureFormula() {
+      // Check if center-specific formula already exists
+      const { data: existing } = await supabase
+        .from('pricing_formula')
+        .select('id')
+        .eq('collection_center_id', centerId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (existing) return; // Already has its own formula
+
+      // Get global formula to copy from
+      const { data: global } = await supabase
+        .from('pricing_formula')
+        .select('*')
+        .is('collection_center_id', null)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      // Create center-specific formula (copy from global or use defaults)
+      const { error } = await supabase
+        .from('pricing_formula')
+        .insert({
+          collection_center_id: centerId,
+          fat_multiplier: global?.fat_multiplier ?? 6,
+          snf_multiplier: global?.snf_multiplier ?? 2,
+          constant_value: global?.constant_value ?? 6.8,
+          mode: (global?.mode as PricingMode) ?? 'hybrid',
+          is_active: true,
+        });
+
+      if (!error) {
+        // Refresh the formula query so UI reflects the new center-specific row
+        queryClient.invalidateQueries({ queryKey: ['pricing-formula', centerId] });
+      }
+    }
+
+    ensureFormula();
+  }, [centerId, queryClient]);
 }
 
 // Update or create pricing formula for a specific center (or global if no centerId)
