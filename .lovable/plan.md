@@ -1,141 +1,124 @@
 
-# Three-Feature Implementation Plan
+# Fix: Partner Pricing Formula + Account Deactivation
 
-## Overview
+## Problem 1 — Partners Cannot Save Pricing Formula
 
-This plan covers three independent improvements:
-1. Partner sign-up with contact number and admin approval workflow
-2. Per-collection-center pricing formula (editable by the partner assigned to that center)
-3. Fix 404 error when refreshing any page
+The current RLS policy on the `pricing_formula` table only allows users with the `admin` role to INSERT or UPDATE rows. When a partner (who has the `user` role) tries to save their center's formula, Supabase blocks it with a row-level security violation error.
+
+**Root Cause:** The policy `Admins can manage pricing formulas` uses `cmd: ALL` restricted to `has_role(auth.uid(), 'admin')`. Partners get blocked even when saving a formula for their own center.
+
+**Fix:** Add a new RLS policy that lets any authenticated user insert or update a pricing formula row **only for a center they are assigned to**. This requires checking the `user_center_assignments` table to verify the user is actually assigned to that center.
 
 ---
 
-## Feature 1: Partner Sign-Up with Approval Workflow
+## Problem 2 — No Account Deactivation Feature
 
-### How it works today
-Sign-up creates a Supabase auth user immediately and the user can log in straight away. There is no approval step.
+There is no `is_active` flag on partner accounts. The admin cannot currently disable a partner's access without fully rejecting their application.
 
-### What changes
+**Fix (two parts):**
 
-**Database (new table: `dairy_partner_applications`)**
+**A. Database change** — Add an `is_active` boolean column (default `true`) to the `dairy_partner_applications` table. This tracks whether the account has been manually deactivated by an admin.
 
-A new table stores the pending partner application before an admin approves it. Fields:
-- `id`, `user_id` (links to the auth user created at sign-up)
-- `full_name`, `contact_number`, `email`
-- `status` — `pending | approved | rejected`
-- `rejection_reason` (optional)
-- `reviewed_by`, `reviewed_at`
-- `created_at`, `updated_at`
+**B. Auth/UI changes:**
+- `AuthContext.tsx` — after fetching application status, also check `is_active`. If the account is active = false, set a new `accountDeactivated` flag.
+- `ProtectedRoute.tsx` — if `accountDeactivated` is true, show a new "Account Deactivated" screen instead of the app.
+- `ApplicationPending.tsx` — add a third status variant `'deactivated'` that shows: "Your account has been deactivated. Contact customer care: +91-7842343642" with a Sign Out button.
+- `PartnerApprovals.tsx` — in the Approved tab, add a "Deactivate" button per partner. In the Approved (but deactivated) state, show an "Activate" button to re-enable.
+- `usePartnerApplications.ts` — add `useDeactivateAccount` and `useActivateAccount` mutation hooks.
 
-RLS: Users can only view their own application. Admins can view and update all applications.
+---
 
-**Sign-up page changes (`src/pages/Auth.tsx`)**
-- Add a "Contact Number" field (10-digit Indian mobile validation)
-- On successful Supabase sign-up, also insert a row into `dairy_partner_applications` with status `pending`
-- After sign-up, show a "Application Submitted" screen instead of redirecting to home
+## Technical Implementation
 
-**AuthContext changes (`src/contexts/AuthContext.tsx`)**
-- After login, check the user's application status
-- If `pending` → show "Your application is under review" screen
-- If `rejected` → show "Your application was rejected" with the reason
-- If `approved` (or user is admin) → allow normal app access
+### Step 1 — Database Migration
 
-**New screen: Application Pending (`src/pages/ApplicationPending.tsx`)**
-- Shows a status card with a clock/pending icon
-- Message: "Your application is submitted and is being reviewed by an admin. You'll be able to log in once approved."
+Two SQL changes:
+
+```sql
+-- Add is_active column to dairy_partner_applications
+ALTER TABLE public.dairy_partner_applications
+ADD COLUMN is_active boolean NOT NULL DEFAULT true;
+
+-- Add new RLS policy: partners can manage formula for their assigned center only
+CREATE POLICY "Partners can manage their center formula"
+ON public.pricing_formula
+FOR ALL
+TO authenticated
+USING (
+  collection_center_id IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM public.user_center_assignments
+    WHERE user_center_assignments.center_id = pricing_formula.collection_center_id
+    AND user_center_assignments.user_id = auth.uid()
+  )
+)
+WITH CHECK (
+  collection_center_id IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM public.user_center_assignments
+    WHERE user_center_assignments.center_id = pricing_formula.collection_center_id
+    AND user_center_assignments.user_id = auth.uid()
+  )
+);
+```
+
+This policy ensures:
+- Partners can only touch formulas for centers they are assigned to (not global formula)
+- Admins still have their existing ALL policy covering everything
+- A partner cannot set another center's formula
+
+### Step 2 — `usePartnerApplications.ts`
+
+Add two new mutation hooks:
+
+- `useDeactivateAccount(applicationId)` — sets `is_active = false`
+- `useActivateAccount(applicationId)` — sets `is_active = true`
+
+### Step 3 — `AuthContext.tsx`
+
+Extend `fetchApplicationStatus` to also read `is_active` from the result. Add a new state `accountDeactivated: boolean` (exported in context). If `is_active` is false, set `accountDeactivated = true`.
+
+### Step 4 — `ProtectedRoute.tsx`
+
+Add a check: if `accountDeactivated` is true and user is not admin → render `<ApplicationPending status="deactivated" />`.
+
+### Step 5 — `ApplicationPending.tsx`
+
+Add `'deactivated'` as a valid status prop. Show:
+- Red/gray icon (ShieldOff)
+- Title: "Account Deactivated"
+- Message: "Your account has been deactivated. Please contact customer care for assistance."
+- Contact button: `tel:+91-7842343642` showing "+91-7842343642"
 - Sign Out button
 
-**Admin Dashboard: Partner Approval (`src/pages/PartnerApprovals.tsx`)**
-- New page accessible only to admins (linked from Settings)
-- Lists all pending applications with name, contact, email, submission date
-- Approve button → sets status to `approved`, assigns the `user` role in `user_roles`
-- Reject button → opens a dialog to enter rejection reason, sets status to `rejected`
-- Tabs: Pending / Approved / Rejected
+### Step 6 — `PartnerApprovals.tsx`
 
-**ProtectedRoute changes**
-- Intercept authenticated users who are not admins and whose application status is `pending` or `rejected`
-- Redirect them to the pending/rejected screen
+In the Approved applications tab, each `ApplicationCard` gets two new action buttons:
+- **Deactivate** (shown when `is_active = true`) — red/destructive outline button
+- **Activate** (shown when `is_active = false`) — green button
 
----
+Show a visual badge ("Deactivated") on cards where `is_active = false` so it's clear at a glance.
 
-## Feature 2: Per-Partner Pricing Formula
-
-### How it works today
-Only admins can manage the pricing formula on the System Settings page. The formula is either global (no center) or center-specific, but staff cannot access it at all.
-
-### What changes
-
-**Access control change (`usePricingFormula.ts`)**
-- The `useUpdatePricingFormula` mutation currently only writes to the global formula
-- Update it to: if the logged-in user is staff with an assigned center, save/update the formula for *that specific center* (using `collection_center_id`)
-- The read path already falls back to global → center-specific order (this is correct)
-
-**Settings page changes (`src/pages/Settings.tsx`)**
-- Add a "Pricing Formula" section visible to **all authenticated users** (not just admins)
-- Staff see and edit the formula for their assigned center
-- Admins see and edit the global formula (or per-center from System Settings)
-
-**PricingFormulaCard changes (`src/components/settings/PricingFormulaCard.tsx`)**
-- Accept an optional `centerId` and `isEditable` prop
-- When `centerId` is provided, read/write to that center's formula
-- Show a clear label "Formula for [Center Name]" vs "Global Formula"
-
-**`useUpdatePricingFormula` hook changes**
-- Accept a `centerId` parameter
-- When saving, upsert the formula for that specific center (not global)
-- This means a partner's formula is isolated to their center and does not affect other centers
+The `PartnerApplication` TypeScript type in `usePartnerApplications.ts` gets a new field: `is_active: boolean`.
 
 ---
 
-## Feature 3: Fix 404 on Page Refresh
+## Files Modified
 
-### Why this happens
-The app uses React Router for client-side routing. When deployed as a static site (Lovable preview), refreshing a URL like `/farmers/123` causes the server to look for a file at that path — which doesn't exist — resulting in a 404.
-
-### Fix
-Add a `public/_redirects` file that redirects all routes to `index.html`, which is the standard fix for Netlify/Lovable-hosted SPAs:
-
-```text
-/* /index.html 200
-```
-
-This single line tells the server: for any URL that doesn't match a static file, serve `index.html` and let React Router handle the routing. The app already uses `BrowserRouter` so this is the correct approach.
+| File | Change |
+|---|---|
+| `supabase/migrations/...` | Add `is_active` column + new RLS policy for pricing_formula |
+| `src/hooks/usePartnerApplications.ts` | Add `is_active` to type, add `useDeactivateAccount` + `useActivateAccount` hooks |
+| `src/contexts/AuthContext.tsx` | Read `is_active`, expose `accountDeactivated` in context |
+| `src/components/ProtectedRoute.tsx` | Block deactivated accounts |
+| `src/pages/ApplicationPending.tsx` | Add `deactivated` status variant with support contact |
+| `src/pages/PartnerApprovals.tsx` | Add Deactivate/Activate buttons in Approved tab |
 
 ---
 
-## Technical Implementation Order
+## Key Notes
 
-```text
-Step 1 — Database migration
-  └─ Create dairy_partner_applications table with RLS
-
-Step 2 — Fix 404 (simplest, instant)
-  └─ Add public/_redirects
-
-Step 3 — Auth sign-up flow
-  ├─ Update Auth.tsx (add phone field, submit application)
-  └─ Create ApplicationPending.tsx page
-
-Step 4 — Auth context approval check
-  └─ Update AuthContext.tsx to check application status on login
-  └─ Update ProtectedRoute.tsx to block pending/rejected users
-
-Step 5 — Admin approval dashboard
-  ├─ Create PartnerApprovals.tsx page
-  ├─ Add hook: usePartnerApplications.ts
-  └─ Link from Settings page (Admin section)
-
-Step 6 — Per-partner pricing formula
-  ├─ Update usePricingFormula.ts (centerId-aware mutation)
-  ├─ Update PricingFormulaCard.tsx (accept centerId prop)
-  └─ Add Pricing Formula section to Settings.tsx for all users
-```
-
----
-
-## Key Decisions
-
-- **No new role is added** — the existing `app_role` enum has `user` for staff and `admin` for admins. Approving a partner grants them the `user` role in `user_roles`.
-- **Application table is separate from `profiles`** — roles are never stored on the profile; this follows the security guideline.
-- **Formula per center is non-destructive** — the global formula remains as fallback. A partner's center-specific formula overrides it for their center only.
-- **Existing milk entries are unaffected** — formula changes only apply to new entries (as per original requirements).
+- Existing approved partners are unaffected (default `is_active = true`)
+- Deactivation does NOT remove the `user` role — it just blocks app access via the pending screen
+- Admins are never blocked regardless of any flag
+- The partner pricing formula fix is purely a database policy change — no hook logic needs to change because the hook already correctly passes `centerId` when saving
