@@ -23,7 +23,24 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Listen for PASSWORD_RECOVERY event
+    const checkSession = async () => {
+      // Check legacy hash-based flow first
+      const hash = window.location.hash;
+      if (hash.includes('type=recovery')) {
+        setIsRecoverySession(true);
+        setChecking(false);
+        return;
+      }
+
+      // For PKCE flow: Supabase auto-exchanges the ?code= param for a session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsRecoverySession(true);
+      }
+      setChecking(false);
+    };
+
+    // Also listen for the event in case it fires after mount
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsRecoverySession(true);
@@ -31,19 +48,7 @@ export default function ResetPassword() {
       }
     });
 
-    // Also check if there's already a session with recovery type in hash
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
-      setIsRecoverySession(true);
-      setChecking(false);
-    } else {
-      // Give a moment for the auth state change to fire
-      const timer = setTimeout(() => setChecking(false), 1500);
-      return () => {
-        clearTimeout(timer);
-        subscription.unsubscribe();
-      };
-    }
+    checkSession();
 
     return () => subscription.unsubscribe();
   }, []);
