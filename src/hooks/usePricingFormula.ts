@@ -133,7 +133,7 @@ export function useEnsureCenterFormula(centerId: string | null | undefined) {
 
       if (existing) return; // Already has its own formula
 
-      // Get global formula to copy from
+      // Get global formula to copy from (now readable via the new SELECT policy)
       const { data: global } = await supabase
         .from('pricing_formula')
         .select('*')
@@ -153,10 +153,14 @@ export function useEnsureCenterFormula(centerId: string | null | undefined) {
           is_active: true,
         });
 
-      if (!error) {
-        // Refresh the formula query so UI reflects the new center-specific row
-        queryClient.invalidateQueries({ queryKey: ['pricing-formula', centerId] });
+      if (error) {
+        console.error('[useEnsureCenterFormula] Failed to create center formula:', error);
+        return;
       }
+
+      // Small delay to let the DB write settle before refetching
+      await new Promise(resolve => setTimeout(resolve, 300));
+      queryClient.invalidateQueries({ queryKey: ['pricing-formula', centerId] });
     }
 
     ensureFormula();
