@@ -268,6 +268,43 @@ export function usePromoteToAdmin() {
   });
 }
 
+// Update own bank details (partners only)
+export function useUpdateBankDetails() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: {
+      bank_account_holder_name: string;
+      bank_account_number: string;
+      bank_ifsc: string;
+      bank_name: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('dairy_partner_applications')
+        .update({
+          bank_account_holder_name: input.bank_account_holder_name,
+          bank_account_number: input.bank_account_number,
+          bank_ifsc: input.bank_ifsc,
+          bank_name: input.bank_name,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-partner-application'] });
+      toast({ title: 'Bank details updated', description: 'Your bank information has been saved.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
 // Demote an admin back to regular user role
 export function useDemoteFromAdmin() {
   const queryClient = useQueryClient();
