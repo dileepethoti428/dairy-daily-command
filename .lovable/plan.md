@@ -1,112 +1,101 @@
 
-# Add Bank Details to Partner Registration
+# Promote Partner to Admin
 
 ## Overview
 
-When a new partner registers ("Become a Partner"), the form will now also collect their bank account information. This data is stored in the `dairy_partner_applications` table so admins can view it during the approval process.
+On the "Approved" tab of the Partner Approvals page, admins will see a new "Make Admin" button on each approved partner's card. Clicking it shows a confirmation dialog warning about the consequences (full system access), and upon confirmation, promotes that partner's role to `admin` in the `user_roles` table.
 
-## What Fields Will Be Added
-
-The following bank detail fields will be added to the registration form:
-
-- **Account Holder Name** — The name on the bank account (required)
-- **Account Number** — Bank account number (required)
-- **IFSC Code** — Indian bank branch code, validated to 11-character standard format (required)
-- **Bank Name** — Name of the bank (required)
-
-## Database Change (Migration)
-
-Four new nullable columns will be added to `dairy_partner_applications`:
-
-```sql
-ALTER TABLE public.dairy_partner_applications
-  ADD COLUMN IF NOT EXISTS bank_account_holder_name TEXT,
-  ADD COLUMN IF NOT EXISTS bank_account_number TEXT,
-  ADD COLUMN IF NOT EXISTS bank_ifsc TEXT,
-  ADD COLUMN IF NOT EXISTS bank_name TEXT;
-```
-
-Nullable so existing pending/approved applications are not broken.
+If a partner is already an admin, the button will instead say "Remove Admin" to allow demotion back to the `user` role.
 
 ---
 
-## Files to Modify
+## How It Works
 
-### 1. New migration file
-Adds the four bank detail columns to `dairy_partner_applications`.
+The `user_roles` table already has an `admin` value in the `app_role` enum and an RLS policy `Admins can manage all user roles` that allows admins to insert/update/delete rows. The existing `has_role()` security definer function is already in place.
 
-### 2. `src/hooks/usePartnerApplications.ts`
-Update the `PartnerApplication` interface to include the four new optional fields:
+The operation is:
+- **Promote**: `upsert({ user_id, role: 'admin' })` into `user_roles` (replaces their `user` role)
+- **Demote**: `update role = 'user'` where `user_id` matches (puts them back to regular partner)
 
-```typescript
-bank_account_holder_name: string | null;
-bank_account_number: string | null;
-bank_ifsc: string | null;
-bank_name: string | null;
-```
+To show which partners are already admins, `useAllApplications` needs to join or separately fetch their current role from `user_roles`. Since Supabase RLS allows admins to read all roles, we can fetch all admin user IDs in a separate query and cross-reference in the UI.
 
-### 3. `src/pages/Auth.tsx`
+---
 
-**New state variables:**
-```typescript
-const [bankAccountHolderName, setBankAccountHolderName] = useState('');
-const [bankAccountNumber, setBankAccountNumber] = useState('');
-const [bankIfsc, setBankIfsc] = useState('');
-const [bankName, setBankName] = useState('');
-```
+## Files to Change
 
-**Validation (added to `validateForm`):**
-- Account Holder Name: required, non-empty
-- Account Number: required, 9–18 digits
-- IFSC Code: required, matches `/^[A-Z]{4}0[A-Z0-9]{6}$/`
-- Bank Name: required, non-empty
+### 1. `src/hooks/usePartnerApplications.ts`
 
-**New form section** (shown only in registration mode, below Contact Number, above Email — grouped under a "Bank Details" heading with a separator):
+Add two new hooks:
 
-```
-── Bank Details ──────────────────────
+**`usePromoteToAdmin`** — upserts `{ user_id, role: 'admin' }` into `user_roles`, then invalidates the `partner-applications` and `partner-roles` query keys.
 
-Account Holder Name      [Input]
-Account Number           [Input]
-IFSC Code                [Input - uppercase auto]
-Bank Name                [Input]
-```
+**`useDemoteFromAdmin`** — updates the `user_roles` row back to `role: 'user'` for that user, then invalidates the same keys.
 
-**On submit**, the four values are added to the `dairy_partner_applications` insert:
-```typescript
-bank_account_holder_name: bankAccountHolderName,
-bank_account_number: bankAccountNumber,
-bank_ifsc: bankIfsc,
-bank_name: bankName,
-```
+**`useApprovedPartnerRoles`** — a query that fetches all `user_id`s from `user_roles` where `role = 'admin'`, so we know which approved partners are already admins. Returns a `Set<string>` for O(1) lookup.
 
-**On "Back to Login" reset**, clear the four new state values.
+### 2. `src/pages/PartnerApprovals.tsx`
 
-### 4. `src/pages/PartnerApprovals.tsx`
+**In `ApplicationCard`**:
+- Add `isAdmin?: boolean`, `onPromote?: () => void`, and `onDemote?: () => void` props.
+- In the approved actions section, add a new button:
+  - If `isAdmin`: shows "Remove Admin" button (amber/warning color, `ShieldAlert` icon)
+  - If not admin: shows "Make Admin" button (indigo/purple color, `ShieldCheck` icon with star)
 
-In `ApplicationCard`, add a "Bank Details" section below the contact/email fields so the admin can see it when reviewing:
+**In `ApplicationList`**:
+- Add `adminUserIds?: Set<string>`, `onPromote`, and `onDemote` props, passed through to each `ApplicationCard`.
 
-```tsx
-{application.bank_account_holder_name && (
-  <div className="rounded-md bg-muted/50 border px-3 py-2 space-y-1">
-    <p className="text-xs font-medium text-foreground">Bank Details</p>
-    <p className="text-xs text-muted-foreground">Holder: {application.bank_account_holder_name}</p>
-    <p className="text-xs text-muted-foreground">Account: {application.bank_account_number}</p>
-    <p className="text-xs text-muted-foreground">IFSC: {application.bank_ifsc}</p>
-    <p className="text-xs text-muted-foreground">Bank: {application.bank_name}</p>
-  </div>
-)}
+**In `PartnerApprovals` (main component)**:
+- Call `useApprovedPartnerRoles()` to get the set of admin user IDs.
+- Call `usePromoteToAdmin()` and `useDemoteFromAdmin()` hooks.
+- Wire up `handlePromote` and `handleDemote` handlers.
+- Add a confirmation `AlertDialog` (not a plain Dialog) that warns:
+  > "Promoting [name] to Admin will give them full access to all centers, all farmers, all data and settings in this system. This cannot be undone without manually removing their admin role. Are you sure?"
+- For demote: a simpler confirmation dialog:
+  > "Removing admin access from [name] will revert them to a regular partner. They will lose access to admin-only features."
+
+---
+
+## UI Layout on the Approved Card
+
+```text
+┌─────────────────────────────────────┐
+│  [Avatar]  Partner Name             │
+│            14 Jan 2026, 10:30 AM    │
+│                                [Approved Badge]
+│  📞 9876543210                      │
+│  ✉ partner@email.com               │
+│  ── Bank Details ──────────────────│
+│  Holder: ...  Account: ...          │
+│                                     │
+│  [Assign Center]                    │
+│  [Make Admin]     ← NEW (or Remove Admin) │
+│  [Deactivate Account]               │
+└─────────────────────────────────────┘
 ```
 
 ---
 
-## Summary
+## Confirmation Dialog (Promote)
 
-| File | Action | Purpose |
-|---|---|---|
-| New migration | Create | Add 4 bank detail columns to `dairy_partner_applications` |
-| `usePartnerApplications.ts` | Modify | Add 4 fields to `PartnerApplication` interface |
-| `src/pages/Auth.tsx` | Modify | Add bank detail form fields + validation + submit |
-| `src/pages/PartnerApprovals.tsx` | Modify | Show bank details on the admin approval card |
+Uses `AlertDialog` (not `Dialog`) to convey the severity:
 
-No RLS policy changes needed — the existing policies already cover the new columns (row-level, not column-level).
+- Title: "Promote to Admin?"
+- Description: "This will give [Name] full administrative access to the entire system — all centers, farmers, milk entries, reports, pricing and settings. Only do this for trusted partners."
+- Buttons: "Cancel" | "Yes, Make Admin" (destructive style)
+
+## Confirmation Dialog (Demote)
+
+- Title: "Remove Admin Access?"
+- Description: "[Name] will lose admin privileges and revert to a regular partner account."
+- Buttons: "Cancel" | "Remove Admin"
+
+---
+
+## Summary of Changes
+
+| File | Change |
+|---|---|
+| `src/hooks/usePartnerApplications.ts` | Add `useApprovedPartnerRoles`, `usePromoteToAdmin`, `useDemoteFromAdmin` hooks |
+| `src/pages/PartnerApprovals.tsx` | Add promote/demote buttons to cards, confirmation dialogs, wire up hooks |
+
+No database migrations needed — the `admin` enum value already exists in `app_role`, and the RLS policy `Admins can manage all user roles` already allows this operation.
