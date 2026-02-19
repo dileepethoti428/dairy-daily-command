@@ -17,6 +17,10 @@ export interface PartnerApplication {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  bank_account_holder_name: string | null;
+  bank_account_number: string | null;
+  bank_ifsc: string | null;
+  bank_name: string | null;
 }
 
 // Get current user's application status

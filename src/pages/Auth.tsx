@@ -22,6 +22,10 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
+  const [bankAccountHolderName, setBankAccountHolderName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIfsc, setBankIfsc] = useState('');
+  const [bankName, setBankName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [applicationSubmitted, setApplicationSubmitted] = useState(false);
@@ -30,6 +34,10 @@ export default function Auth() {
     password?: string;
     fullName?: string;
     contactNumber?: string;
+    bankAccountHolderName?: string;
+    bankAccountNumber?: string;
+    bankIfsc?: string;
+    bankName?: string;
   }>({});
 
   const { signIn, signUp, user } = useAuth();
@@ -71,6 +79,10 @@ export default function Auth() {
                 setPassword('');
                 setFullName('');
                 setContactNumber('');
+                setBankAccountHolderName('');
+                setBankAccountNumber('');
+                setBankIfsc('');
+                setBankName('');
               }}
             >
               Back to Login
@@ -218,6 +230,12 @@ export default function Auth() {
       } catch (e) {
         if (e instanceof z.ZodError) newErrors.contactNumber = e.errors[0].message;
       }
+
+      // Bank details validation
+      if (!bankAccountHolderName.trim()) newErrors.bankAccountHolderName = 'Please enter account holder name';
+      if (!/^\d{9,18}$/.test(bankAccountNumber.trim())) newErrors.bankAccountNumber = 'Enter a valid account number (9–18 digits)';
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc.trim().toUpperCase())) newErrors.bankIfsc = 'Enter a valid IFSC code (e.g. SBIN0001234)';
+      if (!bankName.trim()) newErrors.bankName = 'Please enter bank name';
     }
 
     setErrors(newErrors);
@@ -273,6 +291,10 @@ export default function Auth() {
               contact_number: contactNumber,
               email: email,
               status: 'pending',
+              bank_account_holder_name: bankAccountHolderName,
+              bank_account_number: bankAccountNumber,
+              bank_ifsc: bankIfsc.toUpperCase(),
+              bank_name: bankName,
             });
 
           if (appError) {
@@ -343,6 +365,80 @@ export default function Auth() {
                   />
                   {errors.contactNumber && (
                     <p className="text-sm text-destructive">{errors.contactNumber}</p>
+                  )}
+                </div>
+
+                {/* Bank Details */}
+                <div className="relative flex items-center gap-2 py-1">
+                  <div className="flex-1 border-t border-border" />
+                  <span className="text-xs text-muted-foreground font-medium px-1">Bank Details</span>
+                  <div className="flex-1 border-t border-border" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bankAccountHolderName">Account Holder Name</Label>
+                  <Input
+                    id="bankAccountHolderName"
+                    type="text"
+                    placeholder="Name as on bank account"
+                    value={bankAccountHolderName}
+                    onChange={(e) => setBankAccountHolderName(e.target.value)}
+                    className="h-12"
+                    disabled={loading}
+                  />
+                  {errors.bankAccountHolderName && (
+                    <p className="text-sm text-destructive">{errors.bankAccountHolderName}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bankAccountNumber">Account Number</Label>
+                  <Input
+                    id="bankAccountNumber"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Bank account number"
+                    value={bankAccountNumber}
+                    onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, ''))}
+                    className="h-12"
+                    disabled={loading}
+                    maxLength={18}
+                  />
+                  {errors.bankAccountNumber && (
+                    <p className="text-sm text-destructive">{errors.bankAccountNumber}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bankIfsc">IFSC Code</Label>
+                  <Input
+                    id="bankIfsc"
+                    type="text"
+                    placeholder="e.g. SBIN0001234"
+                    value={bankIfsc}
+                    onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
+                    className="h-12"
+                    disabled={loading}
+                    maxLength={11}
+                  />
+                  {errors.bankIfsc && (
+                    <p className="text-sm text-destructive">{errors.bankIfsc}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bankName">Bank Name</Label>
+                  <Input
+                    id="bankName"
+                    type="text"
+                    placeholder="e.g. State Bank of India"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="h-12"
+                    disabled={loading}
+                  />
+                  {errors.bankName && (
+                    <p className="text-sm text-destructive">{errors.bankName}</p>
                   )}
                 </div>
               </>
