@@ -227,3 +227,70 @@ export function useActivateAccount() {
     },
   });
 }
+
+// Fetch all user_ids that currently have the 'admin' role
+export function useApprovedPartnerRoles() {
+  return useQuery({
+    queryKey: ['partner-roles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.user_id));
+    },
+  });
+}
+
+// Promote an approved partner to admin role
+export function usePromoteToAdmin() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from('user_roles')
+        .upsert({ user_id: userId, role: 'admin' }, { onConflict: 'user_id,role' });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partner-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['partner-applications'] });
+      toast({ title: 'Promoted to Admin', description: 'The partner now has full admin access.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+// Demote an admin back to regular user role
+export function useDemoteFromAdmin() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      // Delete the admin role row (they keep their 'user' role from approval)
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', 'admin');
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partner-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['partner-applications'] });
+      toast({ title: 'Admin access removed', description: 'The partner has been reverted to a regular account.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}

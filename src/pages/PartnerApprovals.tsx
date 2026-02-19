@@ -6,6 +6,9 @@ import {
   useRejectApplication,
   useDeactivateAccount,
   useActivateAccount,
+  useApprovedPartnerRoles,
+  usePromoteToAdmin,
+  useDemoteFromAdmin,
 } from '@/hooks/usePartnerApplications';
 import { useAllCollectionCenters } from '@/hooks/useCollectionCenters';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -20,6 +23,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -40,6 +53,7 @@ import {
   Calendar,
   ShieldOff,
   ShieldCheck,
+  ShieldAlert,
   Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -75,18 +89,24 @@ function StatusBadge({ status }: { status: PartnerApplication['status'] }) {
 
 function ApplicationCard({
   application,
+  isAdmin,
   onApprove,
   onReject,
   onDeactivate,
   onActivate,
   onAssignCenter,
+  onPromote,
+  onDemote,
 }: {
   application: PartnerApplication;
+  isAdmin?: boolean;
   onApprove?: () => void;
   onReject?: () => void;
   onDeactivate?: () => void;
   onActivate?: () => void;
   onAssignCenter?: () => void;
+  onPromote?: () => void;
+  onDemote?: () => void;
 }) {
   return (
     <Card className="shadow-sm">
@@ -162,8 +182,8 @@ function ApplicationCard({
           </div>
         )}
 
-        {/* Approved tab: deactivate / activate toggle + assign center */}
-        {(onDeactivate || onActivate || onAssignCenter) && (
+        {/* Approved tab: deactivate / activate toggle + assign center + promote/demote */}
+        {(onDeactivate || onActivate || onAssignCenter || onPromote || onDemote) && (
           <div className="pt-1 space-y-2">
             {onAssignCenter && (
               <Button
@@ -175,6 +195,31 @@ function ApplicationCard({
                 <Building2 className="mr-1.5 h-4 w-4" />
                 Assign Center
               </Button>
+            )}
+            {isAdmin ? (
+              onDemote && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-amber-600 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/20"
+                  onClick={onDemote}
+                >
+                  <ShieldAlert className="mr-1.5 h-4 w-4" />
+                  Remove Admin
+                </Button>
+              )
+            ) : (
+              onPromote && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-primary border-primary/40 hover:bg-primary/10"
+                  onClick={onPromote}
+                >
+                  <ShieldCheck className="mr-1.5 h-4 w-4" />
+                  Make Admin
+                </Button>
+              )
             )}
             {application.is_active ? (
               <Button
@@ -206,18 +251,24 @@ function ApplicationCard({
 
 function ApplicationList({
   status,
+  adminUserIds,
   onApprove,
   onReject,
   onDeactivate,
   onActivate,
   onAssignCenter,
+  onPromote,
+  onDemote,
 }: {
   status: 'pending' | 'approved' | 'rejected';
+  adminUserIds?: Set<string>;
   onApprove?: (app: PartnerApplication) => void;
   onReject?: (app: PartnerApplication) => void;
   onDeactivate?: (app: PartnerApplication) => void;
   onActivate?: (app: PartnerApplication) => void;
   onAssignCenter?: (app: PartnerApplication) => void;
+  onPromote?: (app: PartnerApplication) => void;
+  onDemote?: (app: PartnerApplication) => void;
 }) {
   const { data: applications, isLoading } = useAllApplications(status);
 
@@ -257,11 +308,14 @@ function ApplicationList({
         <ApplicationCard
           key={app.id}
           application={app}
+          isAdmin={adminUserIds?.has(app.user_id)}
           onApprove={onApprove ? () => onApprove(app) : undefined}
           onReject={onReject ? () => onReject(app) : undefined}
           onDeactivate={onDeactivate ? () => onDeactivate(app) : undefined}
           onActivate={onActivate ? () => onActivate(app) : undefined}
           onAssignCenter={onAssignCenter ? () => onAssignCenter(app) : undefined}
+          onPromote={onPromote ? () => onPromote(app) : undefined}
+          onDemote={onDemote ? () => onDemote(app) : undefined}
         />
       ))}
     </div>
@@ -273,6 +327,9 @@ export default function PartnerApprovals() {
   const rejectApp = useRejectApplication();
   const deactivateAccount = useDeactivateAccount();
   const activateAccount = useActivateAccount();
+  const promoteToAdmin = usePromoteToAdmin();
+  const demoteFromAdmin = useDemoteFromAdmin();
+  const { data: adminUserIds } = useApprovedPartnerRoles();
   const { data: centers } = useAllCollectionCenters();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -282,12 +339,15 @@ export default function PartnerApprovals() {
   const [selectedApp, setSelectedApp] = useState<PartnerApplication | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-
-  // Assign center dialog (for already-approved partners)
+  // Assign center dialog
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignApp, setAssignApp] = useState<PartnerApplication | null>(null);
   const [assignCenterId, setAssignCenterId] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
+
+  // Promote / Demote dialogs
+  const [promoteDialogApp, setPromoteDialogApp] = useState<PartnerApplication | null>(null);
+  const [demoteDialogApp, setDemoteDialogApp] = useState<PartnerApplication | null>(null);
 
   const activeCenters = centers?.filter((c) => c.is_active) ?? [];
 
@@ -352,6 +412,21 @@ export default function PartnerApprovals() {
     }
   };
 
+  // --- Promote / Demote admin ---
+  const handlePromoteConfirm = () => {
+    if (!promoteDialogApp) return;
+    promoteToAdmin.mutate(promoteDialogApp.user_id, {
+      onSuccess: () => setPromoteDialogApp(null),
+    });
+  };
+
+  const handleDemoteConfirm = () => {
+    if (!demoteDialogApp) return;
+    demoteFromAdmin.mutate(demoteDialogApp.user_id, {
+      onSuccess: () => setDemoteDialogApp(null),
+    });
+  };
+
   return (
     <AppLayout>
       <div className="mx-auto max-w-lg space-y-4 p-4">
@@ -385,9 +460,12 @@ export default function PartnerApprovals() {
           <TabsContent value="approved" className="mt-4">
             <ApplicationList
               status="approved"
+              adminUserIds={adminUserIds}
               onDeactivate={handleDeactivate}
               onActivate={handleActivate}
               onAssignCenter={handleAssignCenterClick}
+              onPromote={(app) => setPromoteDialogApp(app)}
+              onDemote={(app) => setDemoteDialogApp(app)}
             />
           </TabsContent>
 
@@ -431,7 +509,7 @@ export default function PartnerApprovals() {
         </DialogContent>
       </Dialog>
 
-      {/* Assign Center Dialog (for already-approved partners) */}
+      {/* Assign Center Dialog */}
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -468,6 +546,50 @@ export default function PartnerApprovals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Promote to Admin AlertDialog */}
+      <AlertDialog open={!!promoteDialogApp} onOpenChange={(open) => { if (!open) setPromoteDialogApp(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Promote to Admin?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will give <strong>{promoteDialogApp?.full_name}</strong> full administrative access to the entire system — all centers, farmers, milk entries, reports, pricing and settings. Only do this for trusted partners.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handlePromoteConfirm}
+              disabled={promoteToAdmin.isPending}
+            >
+              {promoteToAdmin.isPending ? 'Promoting...' : 'Yes, Make Admin'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Demote from Admin AlertDialog */}
+      <AlertDialog open={!!demoteDialogApp} onOpenChange={(open) => { if (!open) setDemoteDialogApp(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Admin Access?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{demoteDialogApp?.full_name}</strong> will lose admin privileges and revert to a regular partner account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDemoteConfirm}
+              disabled={demoteFromAdmin.isPending}
+            >
+              {demoteFromAdmin.isPending ? 'Removing...' : 'Remove Admin'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
+
