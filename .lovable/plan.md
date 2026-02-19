@@ -1,131 +1,131 @@
 
-# Add Bank Details Self-Edit for Partners
+# Add Edit Toggle to Bank Details Card
 
 ## Overview
 
-Partners will be able to view and update their own bank details (Account Holder Name, Account Number, IFSC, Bank Name) from the **Settings page**. This is a safe self-service feature since bank details are not used for any access-control decisions.
+Currently the Bank Details card in Settings always shows editable input fields. The change adds a **view mode** (default) where the values are displayed as read-only text, and an **Edit** button in the card header. Clicking Edit switches to edit mode, revealing the input fields, a **Save** button, and a **Cancel** button.
 
 ---
 
-## The Problem with Current RLS
+## Behaviour
 
-Right now, the `dairy_partner_applications` table only allows partners to **SELECT** their own row and **INSERT** a new one. There is no **UPDATE** policy for non-admins. So we need a new restricted RLS policy.
-
----
-
-## Database Change (Migration)
-
-Add a new RLS policy that allows a user to update **only** their own row's bank detail columns:
-
-```sql
-CREATE POLICY "Users can update own bank details"
-ON public.dairy_partner_applications
-FOR UPDATE
-TO authenticated
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
-```
-
-This is safe because:
-- It only matches their own row (`auth.uid() = user_id`)
-- The application `status`, `reviewed_by`, `is_active` etc. are controlled by admins only — but since Postgres UPDATE policies are row-level (not column-level), we must be careful that the mutation code only ever updates the four bank columns and nothing else
-
-The mutation in code will only send the four bank fields, so `status` and other sensitive fields are never touched client-side.
-
----
-
-## New Hook — `useUpdateBankDetails`
-
-Add to `src/hooks/usePartnerApplications.ts`:
-
-```typescript
-export function useUpdateBankDetails() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (input: {
-      bank_account_holder_name: string;
-      bank_account_number: string;
-      bank_ifsc: string;
-      bank_name: string;
-    }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { error } = await supabase
-        .from('dairy_partner_applications')
-        .update({
-          bank_account_holder_name: input.bank_account_holder_name,
-          bank_account_number: input.bank_account_number,
-          bank_ifsc: input.bank_ifsc,
-          bank_name: input.bank_name,
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-partner-application'] });
-      toast({ title: 'Bank details updated', description: 'Your bank information has been saved.' });
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    },
-  });
-}
-```
-
----
-
-## UI — Bank Details Card in Settings
-
-A new "Bank Details" card will be added to `src/pages/Settings.tsx`, shown **only when the user is not an admin** (i.e., for partners/staff who have an application). It:
-
-1. Calls `useMyApplication()` to fetch the current saved bank info
-2. Pre-fills the form with existing values
-3. On Save, runs `useUpdateBankDetails()` mutation with validation
-
-### Card Layout
-
-```
-┌─────────────────────────────────────────┐
-│  🏦 Bank Details                        │
-│  Update your bank account information   │
-│─────────────────────────────────────────│
-│  Account Holder Name  [______________]  │
-│  Account Number       [______________]  │
-│  IFSC Code            [______________]  │
-│  Bank Name            [______________]  │
-│                                         │
-│               [Save Bank Details]       │
-└─────────────────────────────────────────┘
-```
-
-### Validation (same as registration)
-- Account Holder Name: required, non-empty
-- Account Number: 9–18 digits
-- IFSC Code: matches `/^[A-Z]{4}0[A-Z0-9]{6}$/` (auto-uppercased)
-- Bank Name: required, non-empty
-
-### Placement in Settings page
-The card will be placed **between the Profile card and the App Preferences card**, only visible to non-admin users who have an application on file.
+| State | What the user sees |
+|---|---|
+| **View mode** (default) | Each field shown as plain text. "Edit" button (pencil icon) in the top-right of the card header. |
+| **Edit mode** | Input fields are shown with current values pre-filled. "Save" and "Cancel" buttons at the bottom. |
+| **Save clicked** | Validates, calls mutation, on success → returns to view mode. |
+| **Cancel clicked** | Resets field values back to what was fetched, returns to view mode without saving. |
 
 ---
 
 ## Files to Change
 
-| File | Change |
-|---|---|
-| New migration | Add `"Users can update own bank details"` RLS policy |
-| `src/hooks/usePartnerApplications.ts` | Add `useUpdateBankDetails` hook |
-| `src/pages/Settings.tsx` | Add Bank Details card with form, validation, and mutation |
+### `src/pages/Settings.tsx` only
+
+**State additions inside `BankDetailsCard`:**
+```typescript
+const [isEditing, setIsEditing] = useState(false);
+```
+
+**Cancel handler** — resets field values to the last-fetched application data and exits edit mode:
+```typescript
+const handleCancel = () => {
+  setHolderName(application.bank_account_holder_name ?? '');
+  setAccountNumber(application.bank_account_number ?? '');
+  setIfsc(application.bank_ifsc ?? '');
+  setBankName(application.bank_name ?? '');
+  setErrors({});
+  setIsEditing(false);
+};
+```
+
+**Save handler** — after successful mutation, also calls `setIsEditing(false)`. To do this, the `onSuccess` callback in `useUpdateBankDetails` needs to be extended, OR we can pass an `onSuccess` option to `mutate()`:
+```typescript
+const handleSave = () => {
+  if (!validate()) return;
+  updateBankDetails.mutate({ ... }, {
+    onSuccess: () => setIsEditing(false),
+  });
+};
+```
+
+**Card header** — add Edit button on the right:
+```tsx
+<CardHeader className="pb-3">
+  <div className="flex items-center justify-between">
+    <CardTitle className="flex items-center gap-2">
+      <Landmark className="h-5 w-5 text-primary" />
+      Bank Details
+    </CardTitle>
+    {!isEditing && (
+      <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+        <Pencil className="h-4 w-4 mr-1" />
+        Edit
+      </Button>
+    )}
+  </div>
+  <CardDescription>Your bank account information</CardDescription>
+</CardHeader>
+```
+
+**Card content** — conditionally show view or edit mode:
+
+In **view mode**, each field is shown as a labelled row:
+```tsx
+<div className="space-y-3">
+  <div className="flex flex-col gap-0.5">
+    <span className="text-xs text-muted-foreground">Account Holder Name</span>
+    <span className="font-medium">{holderName || '—'}</span>
+  </div>
+  <Separator />
+  <div className="flex flex-col gap-0.5">
+    <span className="text-xs text-muted-foreground">Account Number</span>
+    <span className="font-medium">{accountNumber || '—'}</span>
+  </div>
+  <Separator />
+  <div className="flex flex-col gap-0.5">
+    <span className="text-xs text-muted-foreground">IFSC Code</span>
+    <span className="font-medium">{ifsc || '—'}</span>
+  </div>
+  <Separator />
+  <div className="flex flex-col gap-0.5">
+    <span className="text-xs text-muted-foreground">Bank Name</span>
+    <span className="font-medium">{bankName || '—'}</span>
+  </div>
+</div>
+```
+
+In **edit mode**, the existing Input fields are shown (same as current), plus Save and Cancel buttons:
+```tsx
+{/* ...existing input fields... */}
+<div className="flex gap-2 pt-1">
+  <Button variant="outline" className="flex-1" onClick={handleCancel}>
+    Cancel
+  </Button>
+  <Button className="flex-1" onClick={handleSave} disabled={updateBankDetails.isPending}>
+    {updateBankDetails.isPending ? 'Saving…' : 'Save'}
+  </Button>
+</div>
+```
+
+**Import addition:** Add `Pencil` to the lucide-react import list.
 
 ---
 
-## Security Notes
+## Empty State Handling
 
-- Only bank-related columns are ever sent in the UPDATE mutation — status, is_active, and role fields are never touched
-- The RLS policy ensures a user can only update **their own row**
-- IFSC is auto-uppercased on input and before submission
-- Admins do not see this card (it is hidden when `isAdmin` is true)
+If a field has no value saved yet (e.g. the partner registered before bank fields were added), the view mode shows `—` as a dash placeholder. This is a clear visual cue that the field is empty.
+
+---
+
+## No Database or Hook Changes Needed
+
+This is a pure UI/UX change — only `src/pages/Settings.tsx` is modified.
+
+---
+
+## Summary
+
+| File | Change |
+|---|---|
+| `src/pages/Settings.tsx` | Add `isEditing` state, view/edit mode toggle, Edit/Save/Cancel buttons, `Pencil` icon import |
