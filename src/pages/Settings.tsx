@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCenter } from '@/contexts/CenterContext';
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -25,11 +26,13 @@ import {
   Mail,
   Phone,
   Users,
+  Landmark,
 } from 'lucide-react';
 import { PricingFormulaCard } from '@/components/settings/PricingFormulaCard';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
+import { useMyApplication, useUpdateBankDetails } from '@/hooks/usePartnerApplications';
 
 // WhatsApp icon component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -41,6 +44,118 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
   </svg>
 );
+
+const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
+function BankDetailsCard() {
+  const { data: application, isLoading } = useMyApplication();
+  const updateBankDetails = useUpdateBankDetails();
+
+  const [holderName, setHolderName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [ifsc, setIfsc] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Pre-fill from fetched application
+  useEffect(() => {
+    if (application) {
+      setHolderName(application.bank_account_holder_name ?? '');
+      setAccountNumber(application.bank_account_number ?? '');
+      setIfsc(application.bank_ifsc ?? '');
+      setBankName(application.bank_name ?? '');
+    }
+  }, [application]);
+
+  if (isLoading || !application) return null;
+
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!holderName.trim()) errs.holderName = 'Account holder name is required';
+    if (!/^\d{9,18}$/.test(accountNumber)) errs.accountNumber = 'Account number must be 9–18 digits';
+    if (!IFSC_REGEX.test(ifsc)) errs.ifsc = 'Invalid IFSC code (e.g. SBIN0001234)';
+    if (!bankName.trim()) errs.bankName = 'Bank name is required';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSave = () => {
+    if (!validate()) return;
+    updateBankDetails.mutate({
+      bank_account_holder_name: holderName.trim(),
+      bank_account_number: accountNumber.trim(),
+      bank_ifsc: ifsc.trim().toUpperCase(),
+      bank_name: bankName.trim(),
+    });
+  };
+
+  return (
+    <Card className="shadow-dairy">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <Landmark className="h-5 w-5 text-primary" />
+          Bank Details
+        </CardTitle>
+        <CardDescription>Update your bank account information</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1">
+          <Label htmlFor="holder-name">Account Holder Name</Label>
+          <Input
+            id="holder-name"
+            value={holderName}
+            onChange={(e) => setHolderName(e.target.value)}
+            placeholder="Full name as on bank account"
+          />
+          {errors.holderName && <p className="text-xs text-destructive">{errors.holderName}</p>}
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="account-number">Account Number</Label>
+          <Input
+            id="account-number"
+            value={accountNumber}
+            onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+            placeholder="9–18 digit account number"
+            inputMode="numeric"
+          />
+          {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber}</p>}
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="ifsc">IFSC Code</Label>
+          <Input
+            id="ifsc"
+            value={ifsc}
+            onChange={(e) => setIfsc(e.target.value.toUpperCase())}
+            placeholder="e.g. SBIN0001234"
+            maxLength={11}
+          />
+          {errors.ifsc && <p className="text-xs text-destructive">{errors.ifsc}</p>}
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="bank-name">Bank Name</Label>
+          <Input
+            id="bank-name"
+            value={bankName}
+            onChange={(e) => setBankName(e.target.value)}
+            placeholder="e.g. State Bank of India"
+          />
+          {errors.bankName && <p className="text-xs text-destructive">{errors.bankName}</p>}
+        </div>
+
+        <Button
+          className="w-full"
+          onClick={handleSave}
+          disabled={updateBankDetails.isPending}
+        >
+          {updateBankDetails.isPending ? 'Saving…' : 'Save Bank Details'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Settings() {
   const { user, userRole, isAdmin, signOut } = useAuth();
@@ -123,6 +238,9 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Bank Details — non-admin partners only */}
+        {!isAdmin && <BankDetailsCard />}
 
         {/* App Preferences */}
         <Card className="shadow-dairy">
@@ -310,19 +428,16 @@ export default function Settings() {
 
         {/* Pricing Formula */}
         {isAdmin ? (
-          /* Admin sees the Global Default formula clearly labelled */
           <PricingFormulaCard
             centerId={null}
             centerName={null}
           />
         ) : selectedCenter ? (
-          /* Partners/Staff see their own center's formula (isolated per-center) */
           <PricingFormulaCard
             centerId={selectedCenter.id}
             centerName={selectedCenter.name}
           />
         ) : (
-          /* Partner has no center assigned yet */
           <Card className="shadow-dairy">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3 text-muted-foreground">
