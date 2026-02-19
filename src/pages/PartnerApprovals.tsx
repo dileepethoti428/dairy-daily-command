@@ -126,6 +126,16 @@ function ApplicationCard({
           </div>
         </div>
 
+        {application.bank_account_holder_name && (
+          <div className="rounded-md bg-muted/50 border px-3 py-2 space-y-1">
+            <p className="text-xs font-semibold text-foreground">Bank Details</p>
+            <p className="text-xs text-muted-foreground">Holder: {application.bank_account_holder_name}</p>
+            <p className="text-xs text-muted-foreground">Account: {application.bank_account_number}</p>
+            <p className="text-xs text-muted-foreground">IFSC: {application.bank_ifsc}</p>
+            <p className="text-xs text-muted-foreground">Bank: {application.bank_name}</p>
+          </div>
+        )}
+
         {application.rejection_reason && (
           <div className="rounded-md bg-destructive/5 border border-destructive/20 px-3 py-2">
             <p className="text-xs font-medium text-destructive">Rejection reason:</p>
