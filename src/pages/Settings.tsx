@@ -27,6 +27,7 @@ import {
   Phone,
   Users,
   Landmark,
+  Pencil,
 } from 'lucide-react';
 import { PricingFormulaCard } from '@/components/settings/PricingFormulaCard';
 import { useNavigate } from 'react-router-dom';
@@ -51,6 +52,7 @@ function BankDetailsCard() {
   const { data: application, isLoading } = useMyApplication();
   const updateBankDetails = useUpdateBankDetails();
 
+  const [isEditing, setIsEditing] = useState(false);
   const [holderName, setHolderName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifsc, setIfsc] = useState('');
@@ -79,79 +81,126 @@ function BankDetailsCard() {
     return Object.keys(errs).length === 0;
   };
 
+  const handleCancel = () => {
+    setHolderName(application.bank_account_holder_name ?? '');
+    setAccountNumber(application.bank_account_number ?? '');
+    setIfsc(application.bank_ifsc ?? '');
+    setBankName(application.bank_name ?? '');
+    setErrors({});
+    setIsEditing(false);
+  };
+
   const handleSave = () => {
     if (!validate()) return;
-    updateBankDetails.mutate({
-      bank_account_holder_name: holderName.trim(),
-      bank_account_number: accountNumber.trim(),
-      bank_ifsc: ifsc.trim().toUpperCase(),
-      bank_name: bankName.trim(),
-    });
+    updateBankDetails.mutate(
+      {
+        bank_account_holder_name: holderName.trim(),
+        bank_account_number: accountNumber.trim(),
+        bank_ifsc: ifsc.trim().toUpperCase(),
+        bank_name: bankName.trim(),
+      },
+      { onSuccess: () => setIsEditing(false) }
+    );
   };
 
   return (
     <Card className="shadow-dairy">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Landmark className="h-5 w-5 text-primary" />
-          Bank Details
-        </CardTitle>
-        <CardDescription>Update your bank account information</CardDescription>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Landmark className="h-5 w-5 text-primary" />
+            Bank Details
+          </CardTitle>
+          {!isEditing && (
+            <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          )}
+        </div>
+        <CardDescription>Your bank account information</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-1">
-          <Label htmlFor="holder-name">Account Holder Name</Label>
-          <Input
-            id="holder-name"
-            value={holderName}
-            onChange={(e) => setHolderName(e.target.value)}
-            placeholder="Full name as on bank account"
-          />
-          {errors.holderName && <p className="text-xs text-destructive">{errors.holderName}</p>}
-        </div>
+      <CardContent>
+        {isEditing ? (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="holder-name">Account Holder Name</Label>
+              <Input
+                id="holder-name"
+                value={holderName}
+                onChange={(e) => setHolderName(e.target.value)}
+                placeholder="Full name as on bank account"
+              />
+              {errors.holderName && <p className="text-xs text-destructive">{errors.holderName}</p>}
+            </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="account-number">Account Number</Label>
-          <Input
-            id="account-number"
-            value={accountNumber}
-            onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-            placeholder="9–18 digit account number"
-            inputMode="numeric"
-          />
-          {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber}</p>}
-        </div>
+            <div className="space-y-1">
+              <Label htmlFor="account-number">Account Number</Label>
+              <Input
+                id="account-number"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+                placeholder="9–18 digit account number"
+                inputMode="numeric"
+              />
+              {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber}</p>}
+            </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="ifsc">IFSC Code</Label>
-          <Input
-            id="ifsc"
-            value={ifsc}
-            onChange={(e) => setIfsc(e.target.value.toUpperCase())}
-            placeholder="e.g. SBIN0001234"
-            maxLength={11}
-          />
-          {errors.ifsc && <p className="text-xs text-destructive">{errors.ifsc}</p>}
-        </div>
+            <div className="space-y-1">
+              <Label htmlFor="ifsc">IFSC Code</Label>
+              <Input
+                id="ifsc"
+                value={ifsc}
+                onChange={(e) => setIfsc(e.target.value.toUpperCase())}
+                placeholder="e.g. SBIN0001234"
+                maxLength={11}
+              />
+              {errors.ifsc && <p className="text-xs text-destructive">{errors.ifsc}</p>}
+            </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="bank-name">Bank Name</Label>
-          <Input
-            id="bank-name"
-            value={bankName}
-            onChange={(e) => setBankName(e.target.value)}
-            placeholder="e.g. State Bank of India"
-          />
-          {errors.bankName && <p className="text-xs text-destructive">{errors.bankName}</p>}
-        </div>
+            <div className="space-y-1">
+              <Label htmlFor="bank-name">Bank Name</Label>
+              <Input
+                id="bank-name"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="e.g. State Bank of India"
+              />
+              {errors.bankName && <p className="text-xs text-destructive">{errors.bankName}</p>}
+            </div>
 
-        <Button
-          className="w-full"
-          onClick={handleSave}
-          disabled={updateBankDetails.isPending}
-        >
-          {updateBankDetails.isPending ? 'Saving…' : 'Save Bank Details'}
-        </Button>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={handleSave} disabled={updateBankDetails.isPending}>
+                {updateBankDetails.isPending ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Account Holder Name</span>
+              <span className="font-medium">{holderName || '—'}</span>
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Account Number</span>
+              <span className="font-medium">{accountNumber || '—'}</span>
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">IFSC Code</span>
+              <span className="font-medium">{ifsc || '—'}</span>
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Bank Name</span>
+              <span className="font-medium">{bankName || '—'}</span>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
