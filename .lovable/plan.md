@@ -1,61 +1,45 @@
 
 
-# Fix Vercel Deployment Configuration
+# Update Favicon and Logo to Zaago Branding
 
-## What's Wrong
+## Overview
 
-Your current `vercel.json` has a few issues that can cause stale deployments and routing problems:
+Replace the current Milk icon and "MilkPro" branding with the uploaded Zaago logo image across the app, and set it as the favicon.
 
-1. **Rewrite destination is `/index.html`** -- Vercel's modern config expects `"/"` (the root), not `"/index.html"`. Using `/index.html` can cause redirect loops or bypass Vercel's built-in static file serving.
-2. **Redundant/complex header rules** -- The second header rule with a long regex pattern for file extensions is unnecessary since Vite already hashes all assets into `/assets/`. The regex can also interfere with Vercel's routing.
-3. **`index.html` no-cache header** -- While well-intentioned, Vercel serves the entry point from its CDN edge and manages cache invalidation on deploy. This rule is harmless but unnecessary.
+## Changes
 
-## What Will Change
+### 1. Copy the uploaded image to the project
 
-### `vercel.json` -- simplified to:
+- Copy `user-uploads://IMG_0422.jpeg` to `public/zaago-logo.jpeg` (for favicon and HTML meta)
+- Copy `user-uploads://IMG_0422.jpeg` to `src/assets/zaago-logo.jpeg` (for React component imports)
 
-```json
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/"
-    }
-  ]
-}
-```
+### 2. Update `index.html`
 
-**Key differences from current config:**
-- Rewrite destination changed from `/index.html` to `/`
-- Removed the complex file-extension regex header rule (Vite hashes everything under `/assets/` already)
-- Removed the explicit `index.html` no-cache rule (Vercel handles this)
-- Added `$schema` for editor autocompletion
+- Change `<title>` from "Lovable App" to "Zaago"
+- Update og:title meta tag to "Zaago"
+- Add favicon link pointing to `/zaago-logo.jpeg`
 
-### `public/_redirects` -- will be deleted
+### 3. Update `src/components/layout/AppHeader.tsx`
 
-This file is a Netlify convention and has no effect on Vercel. Removing it avoids confusion.
+- Replace the Milk icon + green circle with an `<img>` tag showing the Zaago logo
+- Change the text from "MilkPro" to "Zaago"
 
-## After Deployment
+### 4. Update `src/pages/Auth.tsx`
 
-Once the changes are pushed to GitHub and Vercel redeploys:
-- All routes (e.g. `/settings`, `/farmers/123`) will correctly load the SPA
-- Hashed assets under `/assets/` remain cached long-term
-- The HTML entry point will always serve the latest version
-- To force-clear any lingering CDN cache on Vercel, you can go to your Vercel dashboard and trigger a **Redeploy** with the "Clear Build Cache" option checked
+- Replace the Milk icon circles (login and forgot-password views) with the Zaago logo image
+
+### 5. Update `src/pages/ResetPassword.tsx`
+
+- Replace the Milk icon circle with the Zaago logo image
 
 ## Files to Change
 
-| File | Action |
+| File | Change |
 |---|---|
-| `vercel.json` | Update to simplified config above |
-| `public/_redirects` | Delete (Netlify-only, not used by Vercel) |
+| `public/zaago-logo.jpeg` | New file (copy from upload) |
+| `src/assets/zaago-logo.jpeg` | New file (copy from upload) |
+| `index.html` | Title, og:title, favicon link |
+| `src/components/layout/AppHeader.tsx` | Logo image + "Zaago" text |
+| `src/pages/Auth.tsx` | Logo image on auth screens |
+| `src/pages/ResetPassword.tsx` | Logo image on reset screen |
 
