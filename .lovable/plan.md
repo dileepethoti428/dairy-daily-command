@@ -1,101 +1,131 @@
 
-# Promote Partner to Admin
+# Add Bank Details Self-Edit for Partners
 
 ## Overview
 
-On the "Approved" tab of the Partner Approvals page, admins will see a new "Make Admin" button on each approved partner's card. Clicking it shows a confirmation dialog warning about the consequences (full system access), and upon confirmation, promotes that partner's role to `admin` in the `user_roles` table.
-
-If a partner is already an admin, the button will instead say "Remove Admin" to allow demotion back to the `user` role.
+Partners will be able to view and update their own bank details (Account Holder Name, Account Number, IFSC, Bank Name) from the **Settings page**. This is a safe self-service feature since bank details are not used for any access-control decisions.
 
 ---
 
-## How It Works
+## The Problem with Current RLS
 
-The `user_roles` table already has an `admin` value in the `app_role` enum and an RLS policy `Admins can manage all user roles` that allows admins to insert/update/delete rows. The existing `has_role()` security definer function is already in place.
+Right now, the `dairy_partner_applications` table only allows partners to **SELECT** their own row and **INSERT** a new one. There is no **UPDATE** policy for non-admins. So we need a new restricted RLS policy.
 
-The operation is:
-- **Promote**: `upsert({ user_id, role: 'admin' })` into `user_roles` (replaces their `user` role)
-- **Demote**: `update role = 'user'` where `user_id` matches (puts them back to regular partner)
+---
 
-To show which partners are already admins, `useAllApplications` needs to join or separately fetch their current role from `user_roles`. Since Supabase RLS allows admins to read all roles, we can fetch all admin user IDs in a separate query and cross-reference in the UI.
+## Database Change (Migration)
+
+Add a new RLS policy that allows a user to update **only** their own row's bank detail columns:
+
+```sql
+CREATE POLICY "Users can update own bank details"
+ON public.dairy_partner_applications
+FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+```
+
+This is safe because:
+- It only matches their own row (`auth.uid() = user_id`)
+- The application `status`, `reviewed_by`, `is_active` etc. are controlled by admins only — but since Postgres UPDATE policies are row-level (not column-level), we must be careful that the mutation code only ever updates the four bank columns and nothing else
+
+The mutation in code will only send the four bank fields, so `status` and other sensitive fields are never touched client-side.
+
+---
+
+## New Hook — `useUpdateBankDetails`
+
+Add to `src/hooks/usePartnerApplications.ts`:
+
+```typescript
+export function useUpdateBankDetails() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: {
+      bank_account_holder_name: string;
+      bank_account_number: string;
+      bank_ifsc: string;
+      bank_name: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('dairy_partner_applications')
+        .update({
+          bank_account_holder_name: input.bank_account_holder_name,
+          bank_account_number: input.bank_account_number,
+          bank_ifsc: input.bank_ifsc,
+          bank_name: input.bank_name,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-partner-application'] });
+      toast({ title: 'Bank details updated', description: 'Your bank information has been saved.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+```
+
+---
+
+## UI — Bank Details Card in Settings
+
+A new "Bank Details" card will be added to `src/pages/Settings.tsx`, shown **only when the user is not an admin** (i.e., for partners/staff who have an application). It:
+
+1. Calls `useMyApplication()` to fetch the current saved bank info
+2. Pre-fills the form with existing values
+3. On Save, runs `useUpdateBankDetails()` mutation with validation
+
+### Card Layout
+
+```
+┌─────────────────────────────────────────┐
+│  🏦 Bank Details                        │
+│  Update your bank account information   │
+│─────────────────────────────────────────│
+│  Account Holder Name  [______________]  │
+│  Account Number       [______________]  │
+│  IFSC Code            [______________]  │
+│  Bank Name            [______________]  │
+│                                         │
+│               [Save Bank Details]       │
+└─────────────────────────────────────────┘
+```
+
+### Validation (same as registration)
+- Account Holder Name: required, non-empty
+- Account Number: 9–18 digits
+- IFSC Code: matches `/^[A-Z]{4}0[A-Z0-9]{6}$/` (auto-uppercased)
+- Bank Name: required, non-empty
+
+### Placement in Settings page
+The card will be placed **between the Profile card and the App Preferences card**, only visible to non-admin users who have an application on file.
 
 ---
 
 ## Files to Change
 
-### 1. `src/hooks/usePartnerApplications.ts`
-
-Add two new hooks:
-
-**`usePromoteToAdmin`** — upserts `{ user_id, role: 'admin' }` into `user_roles`, then invalidates the `partner-applications` and `partner-roles` query keys.
-
-**`useDemoteFromAdmin`** — updates the `user_roles` row back to `role: 'user'` for that user, then invalidates the same keys.
-
-**`useApprovedPartnerRoles`** — a query that fetches all `user_id`s from `user_roles` where `role = 'admin'`, so we know which approved partners are already admins. Returns a `Set<string>` for O(1) lookup.
-
-### 2. `src/pages/PartnerApprovals.tsx`
-
-**In `ApplicationCard`**:
-- Add `isAdmin?: boolean`, `onPromote?: () => void`, and `onDemote?: () => void` props.
-- In the approved actions section, add a new button:
-  - If `isAdmin`: shows "Remove Admin" button (amber/warning color, `ShieldAlert` icon)
-  - If not admin: shows "Make Admin" button (indigo/purple color, `ShieldCheck` icon with star)
-
-**In `ApplicationList`**:
-- Add `adminUserIds?: Set<string>`, `onPromote`, and `onDemote` props, passed through to each `ApplicationCard`.
-
-**In `PartnerApprovals` (main component)**:
-- Call `useApprovedPartnerRoles()` to get the set of admin user IDs.
-- Call `usePromoteToAdmin()` and `useDemoteFromAdmin()` hooks.
-- Wire up `handlePromote` and `handleDemote` handlers.
-- Add a confirmation `AlertDialog` (not a plain Dialog) that warns:
-  > "Promoting [name] to Admin will give them full access to all centers, all farmers, all data and settings in this system. This cannot be undone without manually removing their admin role. Are you sure?"
-- For demote: a simpler confirmation dialog:
-  > "Removing admin access from [name] will revert them to a regular partner. They will lose access to admin-only features."
-
----
-
-## UI Layout on the Approved Card
-
-```text
-┌─────────────────────────────────────┐
-│  [Avatar]  Partner Name             │
-│            14 Jan 2026, 10:30 AM    │
-│                                [Approved Badge]
-│  📞 9876543210                      │
-│  ✉ partner@email.com               │
-│  ── Bank Details ──────────────────│
-│  Holder: ...  Account: ...          │
-│                                     │
-│  [Assign Center]                    │
-│  [Make Admin]     ← NEW (or Remove Admin) │
-│  [Deactivate Account]               │
-└─────────────────────────────────────┘
-```
-
----
-
-## Confirmation Dialog (Promote)
-
-Uses `AlertDialog` (not `Dialog`) to convey the severity:
-
-- Title: "Promote to Admin?"
-- Description: "This will give [Name] full administrative access to the entire system — all centers, farmers, milk entries, reports, pricing and settings. Only do this for trusted partners."
-- Buttons: "Cancel" | "Yes, Make Admin" (destructive style)
-
-## Confirmation Dialog (Demote)
-
-- Title: "Remove Admin Access?"
-- Description: "[Name] will lose admin privileges and revert to a regular partner account."
-- Buttons: "Cancel" | "Remove Admin"
-
----
-
-## Summary of Changes
-
 | File | Change |
 |---|---|
-| `src/hooks/usePartnerApplications.ts` | Add `useApprovedPartnerRoles`, `usePromoteToAdmin`, `useDemoteFromAdmin` hooks |
-| `src/pages/PartnerApprovals.tsx` | Add promote/demote buttons to cards, confirmation dialogs, wire up hooks |
+| New migration | Add `"Users can update own bank details"` RLS policy |
+| `src/hooks/usePartnerApplications.ts` | Add `useUpdateBankDetails` hook |
+| `src/pages/Settings.tsx` | Add Bank Details card with form, validation, and mutation |
 
-No database migrations needed — the `admin` enum value already exists in `app_role`, and the RLS policy `Admins can manage all user roles` already allows this operation.
+---
+
+## Security Notes
+
+- Only bank-related columns are ever sent in the UPDATE mutation — status, is_active, and role fields are never touched
+- The RLS policy ensures a user can only update **their own row**
+- IFSC is auto-uppercased on input and before submission
+- Admins do not see this card (it is hidden when `isAdmin` is true)
