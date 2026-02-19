@@ -1799,6 +1799,7 @@ export type Database = {
           bank_account_number: string | null
           bank_ifsc: string | null
           bank_name: string | null
+          bank_verified: boolean | null
           contact_number: string
           created_at: string
           email: string
@@ -1817,6 +1818,7 @@ export type Database = {
           bank_account_number?: string | null
           bank_ifsc?: string | null
           bank_name?: string | null
+          bank_verified?: boolean | null
           contact_number: string
           created_at?: string
           email: string
@@ -1835,6 +1837,7 @@ export type Database = {
           bank_account_number?: string | null
           bank_ifsc?: string | null
           bank_name?: string | null
+          bank_verified?: boolean | null
           contact_number?: string
           created_at?: string
           email?: string
