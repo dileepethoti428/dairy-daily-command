@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Milk, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import zaagoLogo from '@/assets/zaago-logo.jpeg';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -150,9 +151,7 @@ export default function ResetPassword() {
     <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
       <Card className="w-full max-w-md shadow-dairy">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
-            <Milk className="h-8 w-8 text-primary-foreground" />
-          </div>
+          <img src={zaagoLogo} alt="Zaago" className="mx-auto mb-4 h-16 w-16 rounded-full object-cover" />
           <CardTitle className="text-2xl font-semibold">Set New Password</CardTitle>
           <CardDescription>Enter a new password for your account.</CardDescription>
         </CardHeader>

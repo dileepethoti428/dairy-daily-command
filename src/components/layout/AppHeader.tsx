@@ -18,7 +18,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Milk, LogOut, User, Settings, Building2 } from 'lucide-react';
+import { LogOut, User, Settings, Building2 } from 'lucide-react';
+import zaagoLogo from '@/assets/zaago-logo.jpeg';
 import { useNavigate } from 'react-router-dom';
 
 export function AppHeader() {
@@ -48,11 +49,9 @@ export function AppHeader() {
       <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-4">
         {/* Logo/App Name */}
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Milk className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <img src={zaagoLogo} alt="Zaago" className="h-8 w-8 rounded-lg object-cover" />
           <span className="hidden font-semibold text-foreground sm:inline">
-            MilkPro
+            Zaago
           </span>
         </div>
 
