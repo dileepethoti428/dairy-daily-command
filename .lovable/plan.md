@@ -1,131 +1,61 @@
 
-# Add Edit Toggle to Bank Details Card
 
-## Overview
+# Fix Vercel Deployment Configuration
 
-Currently the Bank Details card in Settings always shows editable input fields. The change adds a **view mode** (default) where the values are displayed as read-only text, and an **Edit** button in the card header. Clicking Edit switches to edit mode, revealing the input fields, a **Save** button, and a **Cancel** button.
+## What's Wrong
 
----
+Your current `vercel.json` has a few issues that can cause stale deployments and routing problems:
 
-## Behaviour
+1. **Rewrite destination is `/index.html`** -- Vercel's modern config expects `"/"` (the root), not `"/index.html"`. Using `/index.html` can cause redirect loops or bypass Vercel's built-in static file serving.
+2. **Redundant/complex header rules** -- The second header rule with a long regex pattern for file extensions is unnecessary since Vite already hashes all assets into `/assets/`. The regex can also interfere with Vercel's routing.
+3. **`index.html` no-cache header** -- While well-intentioned, Vercel serves the entry point from its CDN edge and manages cache invalidation on deploy. This rule is harmless but unnecessary.
 
-| State | What the user sees |
-|---|---|
-| **View mode** (default) | Each field shown as plain text. "Edit" button (pencil icon) in the top-right of the card header. |
-| **Edit mode** | Input fields are shown with current values pre-filled. "Save" and "Cancel" buttons at the bottom. |
-| **Save clicked** | Validates, calls mutation, on success → returns to view mode. |
-| **Cancel clicked** | Resets field values back to what was fetched, returns to view mode without saving. |
+## What Will Change
 
----
+### `vercel.json` -- simplified to:
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}
+```
+
+**Key differences from current config:**
+- Rewrite destination changed from `/index.html` to `/`
+- Removed the complex file-extension regex header rule (Vite hashes everything under `/assets/` already)
+- Removed the explicit `index.html` no-cache rule (Vercel handles this)
+- Added `$schema` for editor autocompletion
+
+### `public/_redirects` -- will be deleted
+
+This file is a Netlify convention and has no effect on Vercel. Removing it avoids confusion.
+
+## After Deployment
+
+Once the changes are pushed to GitHub and Vercel redeploys:
+- All routes (e.g. `/settings`, `/farmers/123`) will correctly load the SPA
+- Hashed assets under `/assets/` remain cached long-term
+- The HTML entry point will always serve the latest version
+- To force-clear any lingering CDN cache on Vercel, you can go to your Vercel dashboard and trigger a **Redeploy** with the "Clear Build Cache" option checked
 
 ## Files to Change
 
-### `src/pages/Settings.tsx` only
-
-**State additions inside `BankDetailsCard`:**
-```typescript
-const [isEditing, setIsEditing] = useState(false);
-```
-
-**Cancel handler** — resets field values to the last-fetched application data and exits edit mode:
-```typescript
-const handleCancel = () => {
-  setHolderName(application.bank_account_holder_name ?? '');
-  setAccountNumber(application.bank_account_number ?? '');
-  setIfsc(application.bank_ifsc ?? '');
-  setBankName(application.bank_name ?? '');
-  setErrors({});
-  setIsEditing(false);
-};
-```
-
-**Save handler** — after successful mutation, also calls `setIsEditing(false)`. To do this, the `onSuccess` callback in `useUpdateBankDetails` needs to be extended, OR we can pass an `onSuccess` option to `mutate()`:
-```typescript
-const handleSave = () => {
-  if (!validate()) return;
-  updateBankDetails.mutate({ ... }, {
-    onSuccess: () => setIsEditing(false),
-  });
-};
-```
-
-**Card header** — add Edit button on the right:
-```tsx
-<CardHeader className="pb-3">
-  <div className="flex items-center justify-between">
-    <CardTitle className="flex items-center gap-2">
-      <Landmark className="h-5 w-5 text-primary" />
-      Bank Details
-    </CardTitle>
-    {!isEditing && (
-      <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-        <Pencil className="h-4 w-4 mr-1" />
-        Edit
-      </Button>
-    )}
-  </div>
-  <CardDescription>Your bank account information</CardDescription>
-</CardHeader>
-```
-
-**Card content** — conditionally show view or edit mode:
-
-In **view mode**, each field is shown as a labelled row:
-```tsx
-<div className="space-y-3">
-  <div className="flex flex-col gap-0.5">
-    <span className="text-xs text-muted-foreground">Account Holder Name</span>
-    <span className="font-medium">{holderName || '—'}</span>
-  </div>
-  <Separator />
-  <div className="flex flex-col gap-0.5">
-    <span className="text-xs text-muted-foreground">Account Number</span>
-    <span className="font-medium">{accountNumber || '—'}</span>
-  </div>
-  <Separator />
-  <div className="flex flex-col gap-0.5">
-    <span className="text-xs text-muted-foreground">IFSC Code</span>
-    <span className="font-medium">{ifsc || '—'}</span>
-  </div>
-  <Separator />
-  <div className="flex flex-col gap-0.5">
-    <span className="text-xs text-muted-foreground">Bank Name</span>
-    <span className="font-medium">{bankName || '—'}</span>
-  </div>
-</div>
-```
-
-In **edit mode**, the existing Input fields are shown (same as current), plus Save and Cancel buttons:
-```tsx
-{/* ...existing input fields... */}
-<div className="flex gap-2 pt-1">
-  <Button variant="outline" className="flex-1" onClick={handleCancel}>
-    Cancel
-  </Button>
-  <Button className="flex-1" onClick={handleSave} disabled={updateBankDetails.isPending}>
-    {updateBankDetails.isPending ? 'Saving…' : 'Save'}
-  </Button>
-</div>
-```
-
-**Import addition:** Add `Pencil` to the lucide-react import list.
-
----
-
-## Empty State Handling
-
-If a field has no value saved yet (e.g. the partner registered before bank fields were added), the view mode shows `—` as a dash placeholder. This is a clear visual cue that the field is empty.
-
----
-
-## No Database or Hook Changes Needed
-
-This is a pure UI/UX change — only `src/pages/Settings.tsx` is modified.
-
----
-
-## Summary
-
-| File | Change |
+| File | Action |
 |---|---|
-| `src/pages/Settings.tsx` | Add `isEditing` state, view/edit mode toggle, Edit/Save/Cancel buttons, `Pencil` icon import |
+| `vercel.json` | Update to simplified config above |
+| `public/_redirects` | Delete (Netlify-only, not used by Vercel) |
+
