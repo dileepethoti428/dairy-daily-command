@@ -95,15 +95,14 @@ export function getQuantityWarning(
 ): { level: 'amber' | 'red'; message: string } | null {
   if (!expectedDailyLiters || expectedDailyLiters <= 0 || !quantity) return null;
 
-  const dangerThreshold = expectedDailyLiters * 1.5;
-  const warningThreshold = expectedDailyLiters * 1.2;
+  const dangerThreshold = expectedDailyLiters * 1.2;
 
   if (quantity > dangerThreshold) {
     return {
       level: 'red',
       message: `Quantity (${quantity}L) is significantly above expected yield (${expectedDailyLiters}L). Possible fraud — verify source.`,
     };
-  } else if (quantity > warningThreshold) {
+  } else if (quantity > expectedDailyLiters) {
     return {
       level: 'amber',
       message: `Quantity (${quantity}L) is above expected daily yield (${expectedDailyLiters}L). Please verify.`,

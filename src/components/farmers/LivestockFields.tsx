@@ -12,7 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle } from 'lucide-react';
 import type { LivestockInput } from '@/hooks/useFarmerLivestock';
 
-const COW_BREEDS = [{ value: 'gir', label: 'Gir' }];
+const COW_BREEDS = [
+  { value: 'gir', label: 'Gir' },
+  { value: 'other', label: 'Other' },
+];
 
 const BUFFALO_BREEDS = [
   { value: 'murrah', label: 'Murrah' },
@@ -39,6 +42,9 @@ function AnimalSection({
 }) {
   const breeds = animalType === 'cow' ? COW_BREEDS : BUFFALO_BREEDS;
   const label = animalType === 'cow' ? 'Cow' : 'Buffalo';
+  const knownBreedValues = breeds.map((b) => b.value);
+  const isOther = data.breed === 'other' || (data.breed && !knownBreedValues.includes(data.breed));
+  const selectValue = isOther ? 'other' : data.breed;
 
   return (
     <div className="space-y-3">
@@ -49,8 +55,14 @@ function AnimalSection({
       <div className="space-y-2">
         <Label>Breed *</Label>
         <Select
-          value={data.breed}
-          onValueChange={(value) => onChange({ ...data, breed: value })}
+          value={selectValue}
+          onValueChange={(value) => {
+            if (value === 'other') {
+              onChange({ ...data, breed: 'other' });
+            } else {
+              onChange({ ...data, breed: value });
+            }
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select breed" />
@@ -63,6 +75,13 @@ function AnimalSection({
             ))}
           </SelectContent>
         </Select>
+        {isOther && (
+          <Input
+            placeholder="Enter breed name"
+            value={data.breed === 'other' ? '' : data.breed}
+            onChange={(e) => onChange({ ...data, breed: e.target.value || 'other' })}
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
