@@ -56,6 +56,7 @@ export default function MilkEntryAdd() {
         rate_per_litre: values.rate_per_litre,
         total_amount: values.total_amount,
         center_id: selectedCenter?.id,
+        milk_type: values.milk_type || null,
       });
 
       setShowSuccess(true);

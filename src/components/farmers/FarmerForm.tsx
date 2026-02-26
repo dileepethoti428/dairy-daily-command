@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,7 +26,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Phone, MapPin, Milk, Building2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { LivestockFields } from './LivestockFields';
+import type { LivestockInput } from '@/hooks/useFarmerLivestock';
 
 const farmerSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -45,7 +46,8 @@ export type FarmerFormData = z.infer<typeof farmerSchema>;
 
 interface FarmerFormProps {
   defaultValues?: Partial<FarmerFormData>;
-  onSubmit: (data: FarmerFormData) => void;
+  defaultLivestock?: LivestockInput[];
+  onSubmit: (data: FarmerFormData, livestock: LivestockInput[]) => void;
   isLoading?: boolean;
   isEdit?: boolean;
   centers: Array<{ id: string; name: string; code: string }>;
@@ -54,6 +56,7 @@ interface FarmerFormProps {
 
 export function FarmerForm({
   defaultValues,
+  defaultLivestock,
   onSubmit,
   isLoading,
   isEdit = false,
@@ -62,6 +65,9 @@ export function FarmerForm({
 }: FarmerFormProps) {
   const [showBankWarning, setShowBankWarning] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] = useState<FarmerFormData | null>(null);
+
+  // Livestock state
+  const [livestock, setLivestock] = useState<LivestockInput[]>(defaultLivestock || []);
 
   const {
     register,
@@ -96,10 +102,18 @@ export function FarmerForm({
   const milkType = watch('milk_type');
   const centerId = watch('center_id');
 
+  // Update livestock when milk type changes to keep only relevant entries
+  useEffect(() => {
+    if (milkType === 'cow') {
+      setLivestock((prev) => prev.filter((l) => l.animal_type === 'cow'));
+    } else if (milkType === 'buffalo') {
+      setLivestock((prev) => prev.filter((l) => l.animal_type === 'buffalo'));
+    }
+  }, [milkType]);
+
   // Check if bank details changed (for edit mode)
   const hasBankChanges = (data: FarmerFormData) => {
     if (!isEdit || !defaultValues) return false;
-    
     return (
       data.bank_account_holder_name !== defaultValues.bank_account_holder_name ||
       data.bank_account_number !== defaultValues.bank_account_number ||
@@ -109,19 +123,17 @@ export function FarmerForm({
   };
 
   const handleFormSubmit = (data: FarmerFormData) => {
-    // If bank details changed, show warning
     if (isEdit && hasBankChanges(data)) {
       setPendingSubmitData(data);
       setShowBankWarning(true);
       return;
     }
-    
-    onSubmit(data);
+    onSubmit(data, livestock);
   };
 
   const handleConfirmBankChange = () => {
     if (pendingSubmitData) {
-      onSubmit(pendingSubmitData);
+      onSubmit(pendingSubmitData, livestock);
     }
     setShowBankWarning(false);
     setPendingSubmitData(null);
@@ -236,7 +248,14 @@ export function FarmerForm({
           </CardContent>
         </Card>
 
-        {/* Bank Details Section - Only show edit fields for admin */}
+        {/* Livestock Details Section */}
+        <LivestockFields
+          milkType={milkType}
+          livestock={livestock}
+          onChange={setLivestock}
+        />
+
+        {/* Bank Details Section */}
         <Card className="shadow-dairy">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">

@@ -19,6 +19,7 @@ import {
   useUpdateFarmer,
   useCollectionCenters,
 } from '@/hooks/useFarmers';
+import { useFarmerLivestock, useSaveFarmerLivestock, type LivestockInput } from '@/hooks/useFarmerLivestock';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ArrowLeft, Edit } from 'lucide-react';
 import { useState, useCallback } from 'react';
@@ -27,7 +28,7 @@ export default function FarmerEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [showDeactivateWarning, setShowDeactivateWarning] = useState(false);
-  const [pendingData, setPendingData] = useState<FarmerFormData | null>(null);
+  const [pendingData, setPendingData] = useState<{ form: FarmerFormData; livestock: LivestockInput[] } | null>(null);
   const [isFormDirty, setIsFormDirty] = useState(false);
 
   const { showPrompt, confirmNavigation, cancelNavigation } = useUnsavedChanges({
@@ -41,20 +42,20 @@ export default function FarmerEdit() {
 
   const { data: farmer, isLoading: farmerLoading } = useFarmer(id || '');
   const { data: centers, isLoading: centersLoading } = useCollectionCenters();
+  const { data: livestockData, isLoading: livestockLoading } = useFarmerLivestock(id);
   const updateFarmer = useUpdateFarmer();
+  const saveLivestock = useSaveFarmerLivestock();
 
-  const handleSubmit = (data: FarmerFormData) => {
-    // Check if user is deactivating the farmer
+  const handleSubmit = (data: FarmerFormData, livestock: LivestockInput[]) => {
     if (farmer?.is_active && !data.is_active) {
-      setPendingData(data);
+      setPendingData({ form: data, livestock });
       setShowDeactivateWarning(true);
       return;
     }
-
-    performUpdate(data);
+    performUpdate(data, livestock);
   };
 
-  const performUpdate = (data: FarmerFormData) => {
+  const performUpdate = (data: FarmerFormData, livestock: LivestockInput[]) => {
     if (!id) return;
 
     updateFarmer.mutate(
@@ -73,7 +74,13 @@ export default function FarmerEdit() {
       },
       {
         onSuccess: () => {
-          navigate(`/farmers/${id}`);
+          const validLivestock = livestock.filter(
+            (l) => l.breed && l.animal_count > 0 && l.expected_daily_liters > 0
+          );
+          saveLivestock.mutate(
+            { farmerId: id, livestock: validLivestock },
+            { onSettled: () => navigate(`/farmers/${id}`) }
+          );
         },
       }
     );
@@ -81,13 +88,13 @@ export default function FarmerEdit() {
 
   const handleConfirmDeactivate = () => {
     if (pendingData) {
-      performUpdate(pendingData);
+      performUpdate(pendingData.form, pendingData.livestock);
     }
     setShowDeactivateWarning(false);
     setPendingData(null);
   };
 
-  if (farmerLoading || centersLoading) {
+  if (farmerLoading || centersLoading || livestockLoading) {
     return (
       <AppLayout>
         <div className="mx-auto max-w-lg space-y-4 p-4">
@@ -104,13 +111,8 @@ export default function FarmerEdit() {
     return (
       <AppLayout>
         <div className="mx-auto max-w-lg p-4">
-          <Button
-            variant="ghost"
-            className="mb-4 -ml-2"
-            onClick={() => navigate('/farmers')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+          <Button variant="ghost" className="mb-4 -ml-2" onClick={() => navigate('/farmers')}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
           <div className="rounded-lg bg-destructive/10 p-6 text-center text-destructive">
             Farmer not found.
@@ -124,13 +126,8 @@ export default function FarmerEdit() {
     return (
       <AppLayout>
         <div className="mx-auto max-w-lg p-4">
-          <Button
-            variant="ghost"
-            className="mb-4 -ml-2"
-            onClick={() => navigate(`/farmers/${id}`)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+          <Button variant="ghost" className="mb-4 -ml-2" onClick={() => navigate(`/farmers/${id}`)}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
           <div className="rounded-lg bg-warning/10 p-6 text-center">
             <p className="font-medium text-foreground">No Collection Centers</p>
@@ -140,26 +137,26 @@ export default function FarmerEdit() {
     );
   }
 
+  // Convert livestock data to LivestockInput format
+  const defaultLivestock: LivestockInput[] = (livestockData || []).map((l) => ({
+    animal_type: l.animal_type as 'cow' | 'buffalo',
+    breed: l.breed,
+    animal_count: l.animal_count,
+    expected_daily_liters: Number(l.expected_daily_liters),
+  }));
+
   return (
     <AppLayout>
       <div className="mx-auto max-w-lg p-4 pb-8">
-        {/* Header */}
         <div className="mb-4 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="-ml-2"
-            onClick={() => navigate(`/farmers/${id}`)}
-          >
+          <Button variant="ghost" size="icon" className="-ml-2" onClick={() => navigate(`/farmers/${id}`)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
-            <Edit className="h-5 w-5 text-primary" />
-            Edit Farmer
+            <Edit className="h-5 w-5 text-primary" /> Edit Farmer
           </h1>
         </div>
 
-        {/* Form */}
         <FarmerForm
           defaultValues={{
             full_name: farmer.full_name,
@@ -173,41 +170,30 @@ export default function FarmerEdit() {
             bank_name: farmer.bank_name || '',
             center_id: farmer.center_id,
           }}
+          defaultLivestock={defaultLivestock}
           onSubmit={handleSubmit}
-          isLoading={updateFarmer.isPending}
+          isLoading={updateFarmer.isPending || saveLivestock.isPending}
           isEdit
           centers={centers}
           onDirtyChange={handleDirtyChange}
         />
 
-        {/* Deactivation Warning Dialog */}
-        <AlertDialog
-          open={showDeactivateWarning}
-          onOpenChange={setShowDeactivateWarning}
-        >
+        <AlertDialog open={showDeactivateWarning} onOpenChange={setShowDeactivateWarning}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Deactivate Farmer?</AlertDialogTitle>
               <AlertDialogDescription>
-                Deactivating this farmer will prevent new milk entries from being
-                recorded. The farmer's history will be preserved.
+                Deactivating this farmer will prevent new milk entries from being recorded. The farmer's history will be preserved.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDeactivate}>
-                Deactivate
-              </AlertDialogAction>
+              <AlertDialogAction onClick={handleConfirmDeactivate}>Deactivate</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Unsaved Changes Dialog */}
-        <UnsavedChangesDialog
-          open={showPrompt}
-          onConfirm={confirmNavigation}
-          onCancel={cancelNavigation}
-        />
+        <UnsavedChangesDialog open={showPrompt} onConfirm={confirmNavigation} onCancel={cancelNavigation} />
       </div>
     </AppLayout>
   );

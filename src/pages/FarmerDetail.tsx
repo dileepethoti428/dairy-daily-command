@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { PDFActionSheet } from '@/components/pdf/PDFActionSheet';
 import { useFarmer } from '@/hooks/useFarmers';
+import { useFarmerLivestock } from '@/hooks/useFarmerLivestock';
 import { useSettlements } from '@/hooks/useSettlements';
 import { generateFarmerStatementReport } from '@/hooks/usePDFReports';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +18,6 @@ import {
   Building2,
   Edit,
   FileText,
-  History,
   Lock,
   MapPin,
   Milk,
@@ -32,13 +32,12 @@ export default function FarmerDetail() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { data: farmer, isLoading, error } = useFarmer(id || '');
+  const { data: livestock } = useFarmerLivestock(id);
   const { data: settlements } = useSettlements(farmer?.center_id || undefined);
   const [selectedSettlementForPDF, setSelectedSettlementForPDF] = useState<string | null>(null);
 
-  // Get locked/paid settlements for PDF generation
   const availableSettlements = settlements?.filter(s => s.status === 'locked' || s.status === 'paid') || [];
 
-  // Mask account number - show only last 4 digits for non-admin
   const maskAccountNumber = (accNum: string | null) => {
     if (!accNum) return '-';
     if (isAdmin) return accNum;
@@ -63,13 +62,8 @@ export default function FarmerDetail() {
     return (
       <AppLayout>
         <div className="mx-auto max-w-lg p-4">
-          <Button
-            variant="ghost"
-            className="mb-4 -ml-2"
-            onClick={() => navigate('/farmers')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+          <Button variant="ghost" className="mb-4 -ml-2" onClick={() => navigate('/farmers')}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
           <div className="rounded-lg bg-destructive/10 p-6 text-center text-destructive">
             Farmer not found or an error occurred.
@@ -92,17 +86,24 @@ export default function FarmerDetail() {
     farmer.bank_ifsc ||
     farmer.bank_name;
 
+  const breedLabel = (breed: string) => {
+    const map: Record<string, string> = {
+      gir: 'Gir',
+      murrah: 'Murrah',
+      jafarabadi: 'Jafarabadi',
+      surti: 'Surti',
+      mehsani: 'Mehsani',
+      other: 'Other',
+    };
+    return map[breed] || breed;
+  };
+
   return (
     <AppLayout>
       <div className="mx-auto max-w-lg p-4 pb-8">
         {/* Header */}
         <div className="mb-4 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="-ml-2"
-            onClick={() => navigate('/farmers')}
-          >
+          <Button variant="ghost" size="icon" className="-ml-2" onClick={() => navigate('/farmers')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold text-foreground">Farmer Details</h1>
@@ -114,9 +115,7 @@ export default function FarmerDetail() {
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-foreground">
-                    {farmer.full_name}
-                  </h2>
+                  <h2 className="text-lg font-semibold text-foreground">{farmer.full_name}</h2>
                   <Badge
                     variant={farmer.is_active ? 'default' : 'secondary'}
                     className={cn(
@@ -154,7 +153,6 @@ export default function FarmerDetail() {
               </div>
             </div>
 
-            {/* Audit Info */}
             <Separator className="my-4" />
             <div className="text-xs text-muted-foreground">
               Registered: {format(new Date(farmer.created_at), 'dd MMM yyyy')}
@@ -162,6 +160,41 @@ export default function FarmerDetail() {
                 <span> • Updated: {format(new Date(farmer.updated_at), 'dd MMM yyyy')}</span>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Livestock Details Card */}
+        <Card className="mb-4 shadow-dairy">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              🐄 Livestock Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {livestock && livestock.length > 0 ? (
+              <div className="space-y-3">
+                {livestock.map((l) => (
+                  <div key={l.id} className="flex items-center justify-between rounded-lg bg-secondary/50 p-3">
+                    <div>
+                      <p className="font-medium capitalize text-foreground">
+                        {breedLabel(l.breed)} {l.animal_type === 'cow' ? 'Cow' : 'Buffalo'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {l.animal_count} animal{l.animal_count > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold text-primary">
+                        {Number(l.expected_daily_liters)} L
+                      </p>
+                      <p className="text-xs text-muted-foreground">expected/day</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No livestock details recorded</p>
+            )}
           </CardContent>
         </Card>
 
@@ -182,21 +215,15 @@ export default function FarmerDetail() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Account Holder</span>
-                  <span className="font-medium">
-                    {farmer.bank_account_holder_name || '-'}
-                  </span>
+                  <span className="font-medium">{farmer.bank_account_holder_name || '-'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Account Number</span>
-                  <span className="font-medium font-mono">
-                    {maskAccountNumber(farmer.bank_account_number)}
-                  </span>
+                  <span className="font-medium font-mono">{maskAccountNumber(farmer.bank_account_number)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">IFSC Code</span>
-                  <span className="font-medium font-mono uppercase">
-                    {farmer.bank_ifsc || '-'}
-                  </span>
+                  <span className="font-medium font-mono uppercase">{farmer.bank_ifsc || '-'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Bank Name</span>
@@ -211,36 +238,21 @@ export default function FarmerDetail() {
 
         {/* Actions */}
         <div className="space-y-3">
-          <Button
-            className="h-14 w-full"
-            onClick={() => navigate(`/milk/add?farmerId=${farmer.id}`)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Milk Entry
+          <Button className="h-14 w-full" onClick={() => navigate(`/milk/add?farmerId=${farmer.id}`)}>
+            <Plus className="mr-2 h-4 w-4" /> Add Milk Entry
           </Button>
           <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
-              className="h-14"
-              onClick={() => navigate(`/farmers/${farmer.id}/edit`)}
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Farmer
+            <Button variant="outline" className="h-14" onClick={() => navigate(`/farmers/${farmer.id}/edit`)}>
+              <Edit className="mr-2 h-4 w-4" /> Edit Farmer
             </Button>
             {availableSettlements.length > 0 && (
-              <Button
-                variant="outline"
-                className="h-14"
-                onClick={() => setSelectedSettlementForPDF(availableSettlements[0].id)}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Statement
+              <Button variant="outline" className="h-14" onClick={() => setSelectedSettlementForPDF(availableSettlements[0].id)}>
+                <FileText className="mr-2 h-4 w-4" /> Statement
               </Button>
             )}
           </div>
         </div>
 
-        {/* Farmer Statement PDF Sheet */}
         {selectedSettlementForPDF && (
           <PDFActionSheet
             open={!!selectedSettlementForPDF}
