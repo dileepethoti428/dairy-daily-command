@@ -39,6 +39,7 @@ export interface MilkEntryFormData {
   rate_per_litre: number;
   total_amount: number;
   center_id?: string;
+  milk_type?: string | null;
 }
 
 export interface TodayStats {

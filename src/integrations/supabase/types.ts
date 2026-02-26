@@ -2732,6 +2732,47 @@ export type Database = {
           },
         ]
       }
+      farmer_livestock: {
+        Row: {
+          animal_count: number
+          animal_type: string
+          breed: string
+          created_at: string
+          expected_daily_liters: number
+          farmer_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          animal_count?: number
+          animal_type: string
+          breed: string
+          created_at?: string
+          expected_daily_liters?: number
+          farmer_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          animal_count?: number
+          animal_type?: string
+          breed?: string
+          created_at?: string
+          expected_daily_liters?: number
+          farmer_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farmer_livestock_farmer_id_fkey"
+            columns: ["farmer_id"]
+            isOneToOne: false
+            referencedRelation: "farmers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       farmers: {
         Row: {
           address: string | null
@@ -3029,6 +3070,7 @@ export type Database = {
           fat_percentage: number | null
           id: string
           is_locked: boolean
+          milk_type: string | null
           quantity_liters: number
           rate_per_litre: number | null
           recorded_by: string | null
@@ -3046,6 +3088,7 @@ export type Database = {
           fat_percentage?: number | null
           id?: string
           is_locked?: boolean
+          milk_type?: string | null
           quantity_liters: number
           rate_per_litre?: number | null
           recorded_by?: string | null
@@ -3063,6 +3106,7 @@ export type Database = {
           fat_percentage?: number | null
           id?: string
           is_locked?: boolean
+          milk_type?: string | null
           quantity_liters?: number
           rate_per_litre?: number | null
           recorded_by?: string | null
