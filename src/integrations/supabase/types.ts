@@ -8776,6 +8776,10 @@ export type Database = {
         Returns: Json
       }
       get_agent_work_stats: { Args: { agent_uuid: string }; Returns: Json }
+      get_aggregate_milk_data: {
+        Args: { p_milk_type: string; p_period: string }
+        Returns: Json
+      }
       get_all_user_categories: {
         Args: never
         Returns: {

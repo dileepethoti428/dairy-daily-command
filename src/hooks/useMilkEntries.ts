@@ -194,6 +194,7 @@ export function useCreateMilkEntry() {
           farmer_id: entry.farmer_id,
           entry_date: entry.entry_date,
           session: entry.session,
+          milk_type: entry.milk_type || null,
           quantity_liters: entry.quantity_liters,
           fat_percentage: entry.fat_percentage,
           snf_percentage: entry.snf_percentage,
@@ -207,7 +208,7 @@ export function useCreateMilkEntry() {
 
       if (error) {
         if (error.code === '23505') {
-          throw new Error('An entry already exists for this farmer today');
+          throw new Error('An entry for this milk type already exists for this farmer in this session');
         }
         throw error;
       }
