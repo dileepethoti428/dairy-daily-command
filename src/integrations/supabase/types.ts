@@ -2787,6 +2787,10 @@ export type Database = {
           full_name: string
           id: string
           is_active: boolean
+          livestock_breed: string | null
+          livestock_count: number | null
+          livestock_notes: string | null
+          livestock_type: string | null
           milk_type: Database["public"]["Enums"]["milk_type"] | null
           phone: string
           updated_at: string
@@ -2805,6 +2809,10 @@ export type Database = {
           full_name: string
           id?: string
           is_active?: boolean
+          livestock_breed?: string | null
+          livestock_count?: number | null
+          livestock_notes?: string | null
+          livestock_type?: string | null
           milk_type?: Database["public"]["Enums"]["milk_type"] | null
           phone: string
           updated_at?: string
@@ -2823,6 +2831,10 @@ export type Database = {
           full_name?: string
           id?: string
           is_active?: boolean
+          livestock_breed?: string | null
+          livestock_count?: number | null
+          livestock_notes?: string | null
+          livestock_type?: string | null
           milk_type?: Database["public"]["Enums"]["milk_type"] | null
           phone?: string
           updated_at?: string
@@ -8441,6 +8453,10 @@ export type Database = {
         Args: { _customer_id: string; _seller_user_id: string }
         Returns: boolean
       }
+      delete_delivery_agent: {
+        Args: { agent_uuid: string }
+        Returns: undefined
+      }
       delete_orders_with_related_data: {
         Args: { order_ids: string[] }
         Returns: undefined
@@ -8661,6 +8677,7 @@ export type Database = {
           delivery_longitude: number
           delivery_time_slot: string
           id: string
+          is_on_vacation: boolean
           location_id: number
           product_id: string
           product_image: string
@@ -8691,6 +8708,7 @@ export type Database = {
           delivery_longitude: number
           delivery_time_slot: string
           id: string
+          is_on_vacation: boolean
           location_id: number
           product_id: string
           product_image: string
@@ -8721,6 +8739,7 @@ export type Database = {
           delivery_longitude: number
           delivery_time_slot: string
           id: string
+          is_on_vacation: boolean
           location_id: number
           product_id: string
           product_image: string
