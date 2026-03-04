@@ -1,33 +1,24 @@
 
 
-# Allow Separate Cow & Buffalo Entries Per Session
+# Fix: Include `milk_type` in Milk Entry Insert
 
 ## Problem
 
-The unique constraint on `milk_entries` is `(farmer_id, entry_date, session)`. This means a farmer can only have ONE entry per session, even if they have both cow and buffalo milk to deliver separately.
+The `useCreateMilkEntry` hook in `src/hooks/useMilkEntries.ts` does **not** include `milk_type` in the Supabase insert payload (lines 193-204), even though:
+- The `MilkEntryFormData` interface has `milk_type`
+- `MilkEntryAdd.tsx` passes `milk_type` correctly
+- The unique constraint is now `(farmer_id, entry_date, session, milk_type)`
 
-## Solution
+Since `milk_type` is always NULL in the DB, the constraint treats both cow and buffalo entries as duplicates.
 
-Update the unique constraint to include `milk_type`, so a farmer with "both" can have one cow entry AND one buffalo entry per session.
+## Fix
 
-### Database Migration
+### `src/hooks/useMilkEntries.ts`
+- Add `milk_type: entry.milk_type || null` to the `.insert({...})` call in `useCreateMilkEntry` (line ~203)
+- Update the error message to say: `"An entry for this milk type already exists for this farmer in this session"`
 
-Drop the existing constraint and create a new one:
+### `src/pages/MilkEntryAdd.tsx`
+- Update the duplicate warning dialog description (line 161) to mention that each farmer can have one **cow** entry and one **buffalo** entry per session (not just one entry total)
 
-```sql
-ALTER TABLE public.milk_entries
-  DROP CONSTRAINT milk_entries_farmer_date_session_unique;
-
-ALTER TABLE public.milk_entries
-  ADD CONSTRAINT milk_entries_farmer_date_session_type_unique
-  UNIQUE (farmer_id, entry_date, session, milk_type);
-```
-
-### Files to Change
-
-| File | Change |
-|---|---|
-| New migration SQL | Replace unique constraint to include `milk_type` |
-
-That's it -- one constraint change, no code changes needed.
+Two small edits, no new files.
 
