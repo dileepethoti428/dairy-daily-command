@@ -1205,6 +1205,64 @@ export type Database = {
         }
         Relationships: []
       }
+      cod_settlements: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string | null
+          id: string
+          order_id: string
+          seller_id: string
+          settled_at: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string | null
+          id?: string
+          order_id: string
+          seller_id: string
+          settled_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string | null
+          id?: string
+          order_id?: string
+          seller_id?: string
+          settled_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cod_settlements_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cod_settlements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cod_settlements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders_with_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collection_centers: {
         Row: {
           address: string | null
@@ -8671,20 +8729,23 @@ export type Database = {
           customer_name: string
           customer_phone: string
           customer_pincode: string
-          date: string
           delivery_address: Json
           delivery_latitude: number
           delivery_longitude: number
           delivery_time_slot: string
-          id: string
           is_on_vacation: boolean
           location_id: number
+          order_date: string
+          order_id: string
+          order_status: string
           product_id: string
-          product_image: string
+          product_image_url: string
           product_name: string
           product_price: number
           quantity: number
-          status: string
+          seller_latitude: number
+          seller_longitude: number
+          seller_name: string
           subscription_id: string
         }[]
       }
@@ -8702,20 +8763,23 @@ export type Database = {
           customer_name: string
           customer_phone: string
           customer_pincode: string
-          date: string
           delivery_address: Json
           delivery_latitude: number
           delivery_longitude: number
           delivery_time_slot: string
-          id: string
           is_on_vacation: boolean
           location_id: number
+          order_date: string
+          order_id: string
+          order_status: string
           product_id: string
-          product_image: string
+          product_image_url: string
           product_name: string
           product_price: number
           quantity: number
-          status: string
+          seller_latitude: number
+          seller_longitude: number
+          seller_name: string
           subscription_id: string
         }[]
       }
@@ -8733,20 +8797,23 @@ export type Database = {
           customer_name: string
           customer_phone: string
           customer_pincode: string
-          date: string
           delivery_address: Json
           delivery_latitude: number
           delivery_longitude: number
           delivery_time_slot: string
-          id: string
           is_on_vacation: boolean
           location_id: number
+          order_date: string
+          order_id: string
+          order_status: string
           product_id: string
-          product_image: string
+          product_image_url: string
           product_name: string
           product_price: number
           quantity: number
-          status: string
+          seller_latitude: number
+          seller_longitude: number
+          seller_name: string
           subscription_id: string
         }[]
       }
@@ -9241,6 +9308,23 @@ export type Database = {
           total_quantity: number
         }[]
       }
+      get_seller_subscription_handover_direct: {
+        Args: { handover_date: string; seller_user_id: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          agent_profile_image: string
+          customer_name: string
+          customer_quantity: number
+          product_id: string
+          product_image: string
+          product_name: string
+          product_unit: string
+          total_orders: number
+          total_quantity: number
+        }[]
+      }
       get_seller_subscription_orders_overview: {
         Args: { p_date: string; p_seller_user_id: string }
         Returns: {
@@ -9407,6 +9491,13 @@ export type Database = {
         Args: { user_email: string }
         Returns: {
           phone: string
+        }[]
+      }
+      get_user_phones_from_metadata: {
+        Args: { user_ids: string[] }
+        Returns: {
+          phone: string
+          user_id: string
         }[]
       }
       get_user_player_ids: {
