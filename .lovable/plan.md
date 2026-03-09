@@ -1,37 +1,24 @@
 
 
-# Fix Admin Promotion to Grant Full Admin Access
+# Fix: Include `milk_type` in Milk Entry Insert
 
 ## Problem
 
-There are two bugs preventing promoted admins from working properly:
+The `useCreateMilkEntry` hook in `src/hooks/useMilkEntries.ts` does **not** include `milk_type` in the Supabase insert payload (lines 193-204), even though:
+- The `MilkEntryFormData` interface has `milk_type`
+- `MilkEntryAdd.tsx` passes `milk_type` correctly
+- The unique constraint is now `(farmer_id, entry_date, session, milk_type)`
 
-1. **Promotion creates a duplicate role row instead of replacing**: `usePromoteToAdmin` upserts with `onConflict: 'user_id,role'`, but the unique constraint is on `(user_id, role)`. Since the user already has a 'staff' or 'user' role, inserting 'admin' doesn't conflict -- it adds a **second** row. Now the user has two roles (e.g., 'staff' + 'admin').
+Since `milk_type` is always NULL in the DB, the constraint treats both cow and buffalo entries as duplicates.
 
-2. **Multiple roles break role detection**: `fetchUserRole` in `AuthContext` uses `.maybeSingle()`, which errors when multiple rows exist. On error, it falls back to `'staff'` -- so the promoted user is **never recognized as admin**. They don't see the Administration section, can't switch centers, etc.
+## Fix
 
-## Fix (3 files)
+### `src/hooks/useMilkEntries.ts`
+- Add `milk_type: entry.milk_type || null` to the `.insert({...})` call in `useCreateMilkEntry` (line ~203)
+- Update the error message to say: `"An entry for this milk type already exists for this farmer in this session"`
 
-### 1. `src/hooks/usePartnerApplications.ts` -- Fix promote/demote mutations
+### `src/pages/MilkEntryAdd.tsx`
+- Update the duplicate warning dialog description (line 161) to mention that each farmer can have one **cow** entry and one **buffalo** entry per session (not just one entry total)
 
-**Promote**: Delete existing role rows for the user first, then insert `'admin'`.  
-**Demote**: Delete existing role rows, then insert `'user'` (instead of trying to delete only the admin row).
-
-### 2. `src/contexts/AuthContext.tsx` -- Handle multiple role rows gracefully
-
-Change `fetchUserRole` from `.maybeSingle()` to `.select('role')` with a check: if any row has `'admin'`, treat user as admin. This makes it resilient even if duplicate rows exist from past bugs.
-
-### 3. No UI changes needed
-
-The `Settings.tsx` Administration section, `AppHeader.tsx` center switcher, and `CenterContext.tsx` all already check `isAdmin` correctly. Once the role is properly detected, promoted admins automatically get:
-- Administration section (System Settings, Collection Centers, Partner Approvals)
-- Center switcher in header (view all stores)
-- Global data access (all farmers, entries, reports across centers)
-
-## Summary of changes
-
-| File | Change |
-|---|---|
-| `src/hooks/usePartnerApplications.ts` | Fix promote: delete old roles, insert admin. Fix demote: delete old roles, insert user. |
-| `src/contexts/AuthContext.tsx` | Change `fetchUserRole` to handle multiple rows -- pick highest role (admin > others) |
+Two small edits, no new files.
 

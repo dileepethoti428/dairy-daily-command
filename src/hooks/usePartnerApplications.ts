@@ -251,9 +251,18 @@ export function usePromoteToAdmin() {
 
   return useMutation({
     mutationFn: async (userId: string) => {
+      // Delete all existing roles first to avoid duplicates
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert the admin role
       const { error } = await supabase
         .from('user_roles')
-        .upsert({ user_id: userId, role: 'admin' }, { onConflict: 'user_id,role' });
+        .insert({ user_id: userId, role: 'admin' });
 
       if (error) throw error;
     },
@@ -312,12 +321,18 @@ export function useDemoteFromAdmin() {
 
   return useMutation({
     mutationFn: async (userId: string) => {
-      // Delete the admin role row (they keep their 'user' role from approval)
-      const { error } = await supabase
+      // Delete all existing roles
+      const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
-        .eq('user_id', userId)
-        .eq('role', 'admin');
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert back as regular user
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: 'user' });
 
       if (error) throw error;
     },

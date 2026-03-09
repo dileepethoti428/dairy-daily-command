@@ -77,8 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error fetching user role:', error);
@@ -86,8 +85,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const role = data?.role as AppRole;
-      setUserRole(role === 'admin' ? 'admin' : role === 'user' ? 'user' : 'staff');
+      if (!data || data.length === 0) {
+        setUserRole('staff');
+        return;
+      }
+
+      // If any role is 'admin', treat as admin (handles duplicate rows gracefully)
+      if (data.some((r) => r.role === 'admin')) {
+        setUserRole('admin');
+      } else if (data.some((r) => r.role === 'user')) {
+        setUserRole('user');
+      } else {
+        setUserRole('staff');
+      }
     } catch (err) {
       console.error('Error fetching user role:', err);
       setUserRole('staff');
